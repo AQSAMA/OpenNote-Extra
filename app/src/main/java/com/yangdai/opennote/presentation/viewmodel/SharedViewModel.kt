@@ -442,6 +442,8 @@ class SharedViewModel @Inject constructor(
                 }
 
                 is FolderEvent.DeleteFolder -> {
+                    // Recursively delete all subfolders and their notes
+                    deleteSubFoldersRecursively(event.folder.id)
                     useCases.deleteNotesByFolderId(event.folder.id)
                     useCases.deleteFolder(event.folder)
                 }
@@ -450,6 +452,16 @@ class SharedViewModel @Inject constructor(
                     useCases.updateFolder(event.folder)
                 }
             }
+        }
+    }
+
+    private suspend fun deleteSubFoldersRecursively(folderId: Long?) {
+        if (folderId == null) return
+        val subFolders = useCases.getFolders().first().filter { it.parentId == folderId }
+        for (subFolder in subFolders) {
+            deleteSubFoldersRecursively(subFolder.id)
+            useCases.deleteNotesByFolderId(subFolder.id)
+            useCases.deleteFolder(subFolder)
         }
     }
 

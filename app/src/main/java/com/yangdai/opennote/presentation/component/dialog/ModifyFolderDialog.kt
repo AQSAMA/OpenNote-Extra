@@ -144,7 +144,8 @@ fun ModifyFolderDialog(
                         FolderEntity(
                             id = folder.id,
                             name = text,
-                            color = color
+                            color = color,
+                            parentId = folder.parentId
                         )
                     )
 

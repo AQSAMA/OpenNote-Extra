@@ -1,6 +1,7 @@
 package com.yangdai.opennote.presentation.screen
 
 import androidx.activity.compose.LocalActivity
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.hoverable
@@ -17,17 +18,17 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyGridItemScope
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DriveFileRenameOutline
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.DropdownMenu
@@ -47,6 +48,7 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -86,6 +88,7 @@ fun FolderScreen(
     val folderNoteCounts by sharedViewModel.folderWithNoteCountsFlow.collectAsStateWithLifecycle()
 
     var showAddFolderDialog by rememberSaveable { mutableStateOf(false) }
+    var addFolderParentId by rememberSaveable { mutableStateOf<Long?>(null) }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
@@ -105,7 +108,10 @@ fun FolderScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showAddFolderDialog = true }) {
+                    IconButton(onClick = {
+                        addFolderParentId = null
+                        showAddFolderDialog = true
+                    }) {
                         Icon(
                             imageVector = Icons.Outlined.CreateNewFolder,
                             contentDescription = "Create New Folder"
@@ -119,23 +125,29 @@ fun FolderScreen(
         }
     ) { paddingValues ->
 
-        LazyVerticalGrid(
+        val rootFolders = folderNoteCounts.filter { it.first.parentId == null }
+
+        LazyColumn(
             modifier = Modifier.padding(horizontal = 16.dp),
-            columns = GridCells.Adaptive(360.dp),
-            contentPadding = paddingValues,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = paddingValues
         ) {
-            items(folderNoteCounts, key = { it.first.id!! }, contentType = { "FolderItem" }) {
-                FolderItem(
-                    folder = it.first,
-                    notesCountInFolder = it.second,
+            items(rootFolders, key = { it.first.id!! }) { pair ->
+                FolderItemWithChildren(
+                    folder = pair.first,
+                    notesCountInFolder = pair.second,
+                    allFolderNoteCounts = folderNoteCounts,
+                    depth = 0,
                     onModify = { folderEntity ->
                         sharedViewModel.onFolderEvent(
                             FolderEvent.UpdateFolder(folderEntity)
                         )
                     },
-                    onDelete = {
-                        sharedViewModel.onFolderEvent(FolderEvent.DeleteFolder(it.first))
+                    onDelete = { folderEntity ->
+                        sharedViewModel.onFolderEvent(FolderEvent.DeleteFolder(folderEntity))
+                    },
+                    onCreateSubfolder = { parentId ->
+                        addFolderParentId = parentId
+                        showAddFolderDialog = true
                     }
                 )
             }
@@ -143,7 +155,7 @@ fun FolderScreen(
 
         if (showAddFolderDialog) {
             ModifyFolderDialog(
-                folder = FolderEntity(),
+                folder = FolderEntity(parentId = addFolderParentId),
                 onDismissRequest = { showAddFolderDialog = false }
             ) {
                 sharedViewModel.onFolderEvent(
@@ -155,11 +167,61 @@ fun FolderScreen(
 }
 
 @Composable
-fun LazyGridItemScope.FolderItem(
+fun FolderItemWithChildren(
     folder: FolderEntity,
     notesCountInFolder: Int,
+    allFolderNoteCounts: List<Pair<FolderEntity, Int>>,
+    depth: Int,
+    onModify: (FolderEntity) -> Unit,
+    onDelete: (FolderEntity) -> Unit,
+    onCreateSubfolder: (Long) -> Unit
+) {
+    val children = allFolderNoteCounts.filter { it.first.parentId == folder.id }
+    val hasChildren = children.isNotEmpty()
+    var isExpanded by rememberSaveable { mutableStateOf(true) }
+
+    FolderItem(
+        folder = folder,
+        notesCountInFolder = notesCountInFolder,
+        hasChildren = hasChildren,
+        isExpanded = isExpanded,
+        depth = depth,
+        onToggleExpand = { isExpanded = !isExpanded },
+        onModify = onModify,
+        onDelete = { onDelete(folder) },
+        onCreateSubfolder = { folder.id?.let { onCreateSubfolder(it) } }
+    )
+
+    AnimatedVisibility(visible = isExpanded && hasChildren) {
+        Column {
+            children.forEach { childPair ->
+                key(childPair.first.id) {
+                    FolderItemWithChildren(
+                        folder = childPair.first,
+                        notesCountInFolder = childPair.second,
+                        allFolderNoteCounts = allFolderNoteCounts,
+                        depth = depth + 1,
+                        onModify = onModify,
+                        onDelete = onDelete,
+                        onCreateSubfolder = onCreateSubfolder
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun FolderItem(
+    folder: FolderEntity,
+    notesCountInFolder: Int,
+    hasChildren: Boolean,
+    isExpanded: Boolean,
+    depth: Int,
+    onToggleExpand: () -> Unit,
     onModify: (FolderEntity) -> Unit,
     onDelete: () -> Unit,
+    onCreateSubfolder: () -> Unit,
     colorScheme: ColorScheme = MaterialTheme.colorScheme
 ) {
     var showModifyDialog by remember { mutableStateOf(false) }
@@ -177,6 +239,8 @@ fun LazyGridItemScope.FolderItem(
         delay(100L)
         showContextMenu = isHovered
     }
+
+    val startPadding = (depth * 24).dp
 
     SwipeToDismissBox(
         state = dismissState,
@@ -248,9 +312,8 @@ fun LazyGridItemScope.FolderItem(
             }
         },
         modifier = Modifier
-            .padding(bottom = 16.dp)
+            .padding(start = startPadding, bottom = 16.dp)
             .clip(CardDefaults.elevatedShape)
-            .animateItem()
             .hoverable(interactionSource)
             .pointerInput(Unit) {
                 detectTapGestures(
@@ -268,6 +331,20 @@ fun LazyGridItemScope.FolderItem(
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                if (hasChildren) {
+                    IconButton(
+                        onClick = onToggleExpand,
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isExpanded) Icons.Outlined.KeyboardArrowDown
+                            else Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                            contentDescription = "Toggle expand",
+                            tint = folderColor
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
                 Icon(
                     imageVector = Icons.Default.Folder,
                     contentDescription = "Folder",
@@ -312,6 +389,16 @@ fun LazyGridItemScope.FolderItem(
                 },
                 onClick = {
                     showModifyDialog = true
+                    showContextMenu = false
+                }
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.create_subfolder)) },
+                leadingIcon = {
+                    Icon(Icons.Outlined.CreateNewFolder, contentDescription = null)
+                },
+                onClick = {
+                    onCreateSubfolder()
                     showContextMenu = false
                 }
             )

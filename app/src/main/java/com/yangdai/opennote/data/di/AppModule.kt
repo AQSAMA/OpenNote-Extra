@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.yangdai.opennote.data.local.Database
 import com.yangdai.opennote.data.local.MIGRATION_1_2
+import com.yangdai.opennote.data.local.MIGRATION_2_3
 import com.yangdai.opennote.data.repository.AppDataStoreRepositoryImpl
 import com.yangdai.opennote.data.repository.FolderRepositoryImpl
 import com.yangdai.opennote.data.repository.NoteRepositoryImpl
@@ -53,7 +54,7 @@ object AppModule {
             context,
             Database::class.java,
             Database.NAME
-        ).addMigrations(MIGRATION_1_2).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
 
     @Provides
     @Singleton
