@@ -1,6 +1,9 @@
 package com.yangdai.opennote.presentation.util
 
+import androidx.compose.ui.unit.dp
 import com.yangdai.opennote.data.local.entity.FolderEntity
+
+val FolderTreeIndent = 16.dp
 
 data class FolderTreeItem(
     val folder: FolderEntity,

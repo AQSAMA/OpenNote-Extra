@@ -35,6 +35,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yangdai.opennote.R
 import com.yangdai.opennote.data.local.entity.FolderEntity
+import com.yangdai.opennote.presentation.util.FolderTreeIndent
 import com.yangdai.opennote.presentation.util.flattenFolders
 
 
@@ -113,15 +114,19 @@ fun FolderListDialog(
                                 onClick = null
                             )
 
+                            if (item.depth > 0) {
+                                Spacer(
+                                    modifier = Modifier.width(
+                                        (item.depth * FolderTreeIndent.value).dp
+                                    )
+                                )
+                            }
+
                             Icon(
                                 imageVector = Icons.Outlined.FolderOpen,
                                 tint = if (folder.color != null) Color(folder.color) else MaterialTheme.colorScheme.onSurface,
                                 contentDescription = "Leading Icon"
                             )
-
-                            if (item.depth > 0) {
-                                Spacer(modifier = Modifier.width((item.depth * 20).dp))
-                            }
 
                             Text(
                                 text = folder.name,

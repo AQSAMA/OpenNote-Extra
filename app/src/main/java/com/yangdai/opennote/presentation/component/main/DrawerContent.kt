@@ -47,6 +47,7 @@ import com.yangdai.opennote.data.local.entity.FolderEntity
 import com.yangdai.opennote.presentation.navigation.Screen
 import com.yangdai.opennote.presentation.navigation.Screen.Folders
 import com.yangdai.opennote.presentation.navigation.Screen.Settings
+import com.yangdai.opennote.presentation.util.FolderTreeIndent
 import com.yangdai.opennote.presentation.util.flattenFolderTree
 
 @Composable
@@ -200,7 +201,7 @@ private fun DrawerItem(
     modifier = Modifier
         .fillMaxWidth()
         .padding(
-            start = 12.dp + (indentLevel * 16).dp,
+            start = DrawerItemBasePadding + (indentLevel * FolderTreeIndent.value).dp,
             top = 2.dp,
             end = 12.dp,
             bottom = 2.dp
@@ -244,3 +245,5 @@ private fun DrawerItem(
     selected = isSelected,
     onClick = onClick
 )
+
+private val DrawerItemBasePadding = 12.dp

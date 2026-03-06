@@ -2,6 +2,7 @@ package com.yangdai.opennote.presentation.screen
 
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
+import androidx.compose.foundation.animateItem
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -73,6 +74,7 @@ import com.yangdai.opennote.presentation.component.TopBarTitle
 import com.yangdai.opennote.presentation.component.dialog.ModifyFolderDialog
 import com.yangdai.opennote.presentation.component.dialog.WarningDialog
 import com.yangdai.opennote.presentation.event.FolderEvent
+import com.yangdai.opennote.presentation.util.FolderTreeIndent
 import com.yangdai.opennote.presentation.util.flattenFolderTree
 import com.yangdai.opennote.presentation.viewmodel.SharedViewModel
 import kotlinx.coroutines.delay
@@ -287,7 +289,8 @@ fun FolderItem(
             }
         },
         modifier = Modifier
-            .padding(bottom = 12.dp)
+            .padding(bottom = 16.dp)
+            .animateItem()
             .clip(CardDefaults.elevatedShape)
             .hoverable(interactionSource)
             .pointerInput(Unit) {
@@ -307,7 +310,7 @@ fun FolderItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (depth > 0) {
-                    Spacer(modifier = Modifier.width((depth * 20).dp))
+                    Spacer(modifier = Modifier.width((depth * FolderTreeIndent.value).dp))
                 }
                 if (hasChildren && onExpandToggle != null) {
                     IconButton(onClick = onExpandToggle) {

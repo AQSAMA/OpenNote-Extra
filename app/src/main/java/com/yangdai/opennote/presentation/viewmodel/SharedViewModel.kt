@@ -471,10 +471,16 @@ class SharedViewModel @Inject constructor(
             }
         }
 
+        val descendantCounts = folders
+            .mapNotNull { folderEntity ->
+                folderEntity.id?.let { id -> id to getFolderDescendantIds(folders, id).size }
+            }
+            .toMap()
+
         folders
             .filter { folderEntity -> folderEntity.id in folderIdsToDelete }
             .sortedByDescending { folderEntity ->
-                folderEntity.id?.let { getFolderDescendantIds(folders, it).size } ?: 0
+                folderEntity.id?.let { descendantCounts[it] } ?: 0
             }
             .forEach { folderEntity ->
                 useCases.deleteFolder(folderEntity)

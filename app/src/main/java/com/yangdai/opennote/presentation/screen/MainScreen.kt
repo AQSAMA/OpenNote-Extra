@@ -146,6 +146,10 @@ fun MainScreen(
             .filter { it.isFavorite }
             .sortedBy { it.name.lowercase() }
     }
+    val baseGridTopPadding = remember(settings.isListView) {
+        if (settings.isListView) MainScreenListTopPadding else MainScreenGridTopPadding
+    }
+    val favoriteFoldersHeightOffset = FavoriteFoldersHeightOffset
 
     val staggeredGridState = rememberLazyStaggeredGridState()
     val navigationDrawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -566,12 +570,20 @@ fun MainScreen(
                     remember(statusBarPadding, innerPadding, settings.isListView, showFavoriteFolders) {
 
                         if (!settings.isListView) PaddingValues(
-                            top = statusBarPadding.calculateTopPadding() + if (showFavoriteFolders) 140.dp else 78.dp,
+                            top = statusBarPadding.calculateTopPadding() + if (showFavoriteFolders) {
+                                baseGridTopPadding + favoriteFoldersHeightOffset
+                            } else {
+                                baseGridTopPadding
+                            },
                             start = 16.dp,
                             end = 16.dp,
                             bottom = innerPadding.calculateBottomPadding()
                         ) else PaddingValues(
-                            top = statusBarPadding.calculateTopPadding() + if (showFavoriteFolders) 136.dp else 74.dp,
+                            top = statusBarPadding.calculateTopPadding() + if (showFavoriteFolders) {
+                                baseGridTopPadding + favoriteFoldersHeightOffset
+                            } else {
+                                baseGridTopPadding
+                            },
                             start = 5.dp,
                             end = 16.dp,
                             bottom = innerPadding.calculateBottomPadding()
@@ -771,6 +783,10 @@ fun MainScreen(
         }
     }
 }
+
+private val MainScreenGridTopPadding = 78.dp
+private val MainScreenListTopPadding = 74.dp
+private val FavoriteFoldersHeightOffset = 62.dp
 
 private object FolderEntitySaver : Saver<FolderEntity, List<Any?>> {
     override fun restore(value: List<Any?>): FolderEntity {
