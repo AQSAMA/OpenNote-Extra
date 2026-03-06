@@ -166,7 +166,7 @@ private fun DrawerFolderWithChildren(
     onFolderClicked: (Int, FolderEntity) -> Unit,
     depth: Int
 ) {
-    if (depth > 10) return
+    if (depth > FolderEntity.MAX_FOLDER_DEPTH) return
     val children = allFolderNoteCounts.filter { it.first.parentId == folder.id }
     val hasChildren = children.isNotEmpty()
     var isExpanded by rememberSaveable { mutableStateOf(false) }

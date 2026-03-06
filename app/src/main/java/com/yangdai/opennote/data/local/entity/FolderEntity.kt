@@ -14,6 +14,8 @@ data class FolderEntity(
     val parentId: Long? = null
 ) {
     companion object {
+        const val MAX_FOLDER_DEPTH = 10
+
         val folderColors = listOf(
             Red,
             Orange,

@@ -178,7 +178,7 @@ fun FolderItemWithChildren(
     onDelete: (FolderEntity) -> Unit,
     onCreateSubfolder: (Long) -> Unit
 ) {
-    if (depth > 10) return
+    if (depth > FolderEntity.MAX_FOLDER_DEPTH) return
     val children = allFolderNoteCounts.filter { it.first.parentId == folder.id }
     val hasChildren = children.isNotEmpty()
     var isExpanded by rememberSaveable { mutableStateOf(true) }

@@ -48,7 +48,8 @@ fun FolderListDialog(
 
     // Build hierarchical folder list
     val hierarchicalFolders = remember(folders) {
-        buildHierarchicalFolderList(folders)
+        val allIds = folders.mapNotNull { it.id }.toSet()
+        buildHierarchicalFolderList(folders, allIds)
     }
 
     AlertDialog(
@@ -144,12 +145,12 @@ fun FolderListDialog(
 
 private fun buildHierarchicalFolderList(
     folders: List<FolderEntity>,
+    allIds: Set<Long>,
     parentId: Long? = null,
     depth: Int = 0,
     visited: MutableSet<Long?> = mutableSetOf()
 ): List<Pair<FolderEntity, Int>> {
-    if (!visited.add(parentId) || depth > 10) return emptyList()
-    val allIds = folders.mapNotNull { it.id }.toSet()
+    if (!visited.add(parentId) || depth > FolderEntity.MAX_FOLDER_DEPTH) return emptyList()
     val result = mutableListOf<Pair<FolderEntity, Int>>()
     val children = if (parentId == null) {
         // At root level, include orphaned folders whose parentId doesn't match any existing folder
@@ -159,7 +160,7 @@ private fun buildHierarchicalFolderList(
     }
     for (child in children) {
         result.add(child to depth)
-        result.addAll(buildHierarchicalFolderList(folders, child.id, depth + 1, visited))
+        result.addAll(buildHierarchicalFolderList(folders, allIds, child.id, depth + 1, visited))
     }
     return result
 }
