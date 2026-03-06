@@ -720,18 +720,8 @@ fun MainScreen(
 internal object FolderEntitySaver : Saver<FolderEntity, Any> {
     override fun restore(value: Any): FolderEntity? {
         return when (value) {
-            is List<*> -> FolderEntity(
-                id = value.getOrNull(0) as? Long,
-                name = value.getOrNull(1) as? String ?: "",
-                color = value.getOrNull(2) as? Int,
-                parentId = value.getOrNull(3) as? Long
-            )
-
-            is Triple<*, *, *> -> FolderEntity(
-                id = value.first as? Long,
-                name = value.second as? String ?: "",
-                color = value.third as? Int
-            )
+            is List<*> -> restoreFolderEntityFromList(value)
+            is Triple<*, *, *> -> restoreFolderEntityFromTriple(value)
 
             else -> null
         }
@@ -740,4 +730,37 @@ internal object FolderEntitySaver : Saver<FolderEntity, Any> {
     override fun SaverScope.save(value: FolderEntity): Any {
         return listOf(value.id, value.name, value.color, value.parentId)
     }
+}
+
+private fun restoreFolderEntityFromList(value: List<*>): FolderEntity? {
+    if (value.size < 3) return null
+
+    val rawId = value.getOrNull(0)
+    val rawName = value.getOrNull(1)
+    val rawColor = value.getOrNull(2)
+    val rawParentId = value.getOrNull(3)
+
+    if (rawId != null && rawId !is Long) return null
+    if (rawName != null && rawName !is String) return null
+    if (rawColor != null && rawColor !is Int) return null
+    if (rawParentId != null && rawParentId !is Long) return null
+
+    return FolderEntity(
+        id = rawId as? Long,
+        name = rawName as? String ?: "",
+        color = rawColor as? Int,
+        parentId = rawParentId as? Long
+    )
+}
+
+private fun restoreFolderEntityFromTriple(value: Triple<*, *, *>): FolderEntity? {
+    if (value.first != null && value.first !is Long) return null
+    if (value.second != null && value.second !is String) return null
+    if (value.third != null && value.third !is Int) return null
+
+    return FolderEntity(
+        id = value.first as? Long,
+        name = value.second as? String ?: "",
+        color = value.third as? Int
+    )
 }

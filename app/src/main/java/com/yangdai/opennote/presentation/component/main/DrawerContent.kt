@@ -46,6 +46,8 @@ import com.yangdai.opennote.presentation.navigation.Screen
 import com.yangdai.opennote.presentation.navigation.Screen.Folders
 import com.yangdai.opennote.presentation.navigation.Screen.Settings
 
+private const val FIRST_FOLDER_DRAWER_INDEX = 2
+
 @Composable
 fun DrawerContent(
     folderNoteCounts: List<Pair<FolderEntity, Int>>,
@@ -262,13 +264,13 @@ internal fun folderDrawerIndex(
     allFolderNoteCounts: List<Pair<FolderEntity, Int>>
 ): Int? = allFolderNoteCounts.indexOfFirst { it.first.id == folderId }
     .takeIf { it >= 0 }
-    ?.plus(2)
+    ?.plus(FIRST_FOLDER_DRAWER_INDEX)
 
 internal fun isFolderDrawerItemSelected(
     selectedDrawerIndex: Int,
     selectedFolderId: Long?,
     folderId: Long?
-): Boolean = selectedDrawerIndex > 1 && selectedFolderId == folderId
+): Boolean = selectedDrawerIndex >= FIRST_FOLDER_DRAWER_INDEX && selectedFolderId == folderId
 
 @Composable
 private fun DrawerItem(

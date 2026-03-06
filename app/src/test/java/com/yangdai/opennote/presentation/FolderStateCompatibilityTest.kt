@@ -14,7 +14,7 @@ import org.junit.Test
 class FolderStateCompatibilityTest {
 
     @Test
-    fun folderDrawerIndex_returnsNullWhenFolderIsMissing() {
+    fun folderDrawerIndex_returnsCorrectIndexOrNull() {
         val folders = listOf(
             FolderEntity(id = 10L, name = "Root") to 3,
             FolderEntity(id = 11L, name = "Child", parentId = 10L) to 1
@@ -27,6 +27,7 @@ class FolderStateCompatibilityTest {
 
     @Test
     fun drawerSelection_usesFolderIdWithoutMatchingTrashIndex() {
+        // Matching a folder ID must not make the Trash item look selected.
         assertFalse(
             isFolderDrawerItemSelected(
                 selectedDrawerIndex = 1,
@@ -61,5 +62,10 @@ class FolderStateCompatibilityTest {
         val saved = with(FolderEntitySaver) { saverScope.save(folder) }
 
         assertEquals(folder, saved?.let(FolderEntitySaver::restore))
+    }
+
+    @Test
+    fun folderEntitySaver_rejectsUnexpectedSavedStateTypes() {
+        assertNull(FolderEntitySaver.restore(listOf("wrong", "types", 123)))
     }
 }

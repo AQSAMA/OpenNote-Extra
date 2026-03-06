@@ -312,6 +312,7 @@ fun FolderItem(
         },
         modifier = Modifier
             .padding(start = startPadding, bottom = 16.dp)
+            .animateItem()
             .clip(CardDefaults.elevatedShape)
             .hoverable(interactionSource)
             .pointerInput(Unit) {

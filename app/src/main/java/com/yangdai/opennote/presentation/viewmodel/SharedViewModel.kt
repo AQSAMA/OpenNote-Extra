@@ -15,6 +15,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yangdai.opennote.data.local.Database
 import com.yangdai.opennote.data.local.entity.BackupData
+import com.yangdai.opennote.data.local.entity.FolderEntity
 import com.yangdai.opennote.data.local.entity.NoteEntity
 import com.yangdai.opennote.domain.repository.AppDataStoreRepository
 import com.yangdai.opennote.domain.usecase.NoteOrder
@@ -459,9 +460,22 @@ class SharedViewModel @Inject constructor(
 
     private suspend fun deleteSubFoldersRecursively(folderId: Long?) {
         if (folderId == null) return
-        val subFolders = useCases.getSubFolders(folderId).first()
-        for (subFolder in subFolders) {
-            deleteSubFoldersRecursively(subFolder.id)
+
+        val pendingFolderIds = ArrayDeque<Long>()
+        val subFoldersToDelete = mutableListOf<FolderEntity>()
+        pendingFolderIds.addLast(folderId)
+
+        while (pendingFolderIds.isNotEmpty()) {
+            val currentFolderId = pendingFolderIds.removeLast()
+            val subFolders = useCases.getSubFolders(currentFolderId).first()
+
+            for (subFolder in subFolders) {
+                subFolder.id?.let(pendingFolderIds::addLast)
+                subFoldersToDelete.add(subFolder)
+            }
+        }
+
+        for (subFolder in subFoldersToDelete.asReversed()) {
             useCases.deleteNotesByFolderId(subFolder.id)
             useCases.deleteFolder(subFolder)
         }
