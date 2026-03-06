@@ -39,7 +39,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.yangdai.opennote.R
 import com.yangdai.opennote.data.local.entity.FolderEntity
@@ -129,7 +128,6 @@ fun DrawerContent(
             // Build folder hierarchy: show root folders first, then their children
             val rootFolders = folderNoteCounts.filter { it.first.parentId == null }
             rootFolders.forEach { pair ->
-                val index = folderNoteCounts.indexOf(pair)
                 key(pair.first.id) {
                     DrawerFolderWithChildren(
                         folder = pair.first,
@@ -171,47 +169,82 @@ private fun DrawerFolderWithChildren(
     val folderIndex = allFolderNoteCounts.indexOf(folder to noteCount)
     val isSelected = selectedDrawerIndex == folderIndex + 2
 
-    if (hasChildren) {
-        // Folder with children: show chevron + folder
-        DrawerItem(
-            icon = if (!isExpanded) Icons.AutoMirrored.Outlined.KeyboardArrowRight else Icons.Outlined.KeyboardArrowDown,
-            iconTint = folder.color?.let { Color(it) }
-                ?: MaterialTheme.colorScheme.primary,
-            label = folder.name,
-            badge = noteCount.toString(),
-            isSelected = isSelected,
-            startPadding = (depth * 16).dp,
-            onClick = { isExpanded = !isExpanded },
-            onLabelClick = { onFolderClicked(folderIndex, folder) }
+    Row(
+        modifier = Modifier.padding(
+            start = NavigationDrawerItemDefaults.ItemPadding.calculateLeftPadding(
+                androidx.compose.ui.unit.LayoutDirection.Ltr
+            ) + (depth * 16).dp
+        ),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (hasChildren) {
+            IconButton(
+                onClick = { isExpanded = !isExpanded },
+                modifier = Modifier.padding(0.dp)
+            ) {
+                Icon(
+                    imageVector = if (!isExpanded) Icons.AutoMirrored.Outlined.KeyboardArrowRight
+                    else Icons.Outlined.KeyboardArrowDown,
+                    contentDescription = "Toggle expand",
+                    tint = folder.color?.let { Color(it) }
+                        ?: MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+
+        NavigationDrawerItem(
+            modifier = Modifier.padding(
+                end = NavigationDrawerItemDefaults.ItemPadding.calculateRightPadding(
+                    androidx.compose.ui.unit.LayoutDirection.Ltr
+                )
+            ),
+            icon = {
+                if (!hasChildren) {
+                    Icon(
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                        imageVector = Icons.Outlined.FolderOpen,
+                        tint = folder.color?.let { Color(it) }
+                            ?: MaterialTheme.colorScheme.primary,
+                        contentDescription = "Folder Icon"
+                    )
+                }
+            },
+            label = {
+                Text(
+                    text = folder.name,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
+            badge = {
+                Text(
+                    text = noteCount.toString(),
+                    style = MaterialTheme.typography.labelMedium
+                )
+            },
+            shape = MaterialTheme.shapes.medium,
+            selected = isSelected,
+            onClick = { onFolderClicked(folderIndex, folder) }
         )
-        AnimatedVisibility(visible = isExpanded) {
-            Column {
-                children.forEach { childPair ->
-                    key(childPair.first.id) {
-                        DrawerFolderWithChildren(
-                            folder = childPair.first,
-                            noteCount = childPair.second,
-                            allFolderNoteCounts = allFolderNoteCounts,
-                            selectedDrawerIndex = selectedDrawerIndex,
-                            onFolderClicked = onFolderClicked,
-                            depth = depth + 1
-                        )
-                    }
+    }
+
+    AnimatedVisibility(visible = isExpanded && hasChildren) {
+        Column {
+            children.forEach { childPair ->
+                key(childPair.first.id) {
+                    DrawerFolderWithChildren(
+                        folder = childPair.first,
+                        noteCount = childPair.second,
+                        allFolderNoteCounts = allFolderNoteCounts,
+                        selectedDrawerIndex = selectedDrawerIndex,
+                        onFolderClicked = onFolderClicked,
+                        depth = depth + 1
+                    )
                 }
             }
         }
-    } else {
-        // Leaf folder: show folder icon
-        DrawerItem(
-            icon = Icons.Outlined.FolderOpen,
-            iconTint = folder.color?.let { Color(it) }
-                ?: MaterialTheme.colorScheme.primary,
-            label = folder.name,
-            badge = noteCount.toString(),
-            isSelected = isSelected,
-            startPadding = (depth * 16).dp,
-            onClick = { onFolderClicked(folderIndex, folder) }
-        )
     }
 }
 
@@ -222,18 +255,9 @@ private fun DrawerItem(
     label: String,
     badge: String = "",
     isSelected: Boolean,
-    startPadding: Dp = 0.dp,
-    onClick: () -> Unit,
-    onLabelClick: (() -> Unit)? = null
+    onClick: () -> Unit
 ) = NavigationDrawerItem(
-    modifier = Modifier.padding(
-        start = NavigationDrawerItemDefaults.ItemPadding.calculateLeftPadding(
-            androidx.compose.ui.unit.LayoutDirection.Ltr
-        ) + startPadding,
-        end = NavigationDrawerItemDefaults.ItemPadding.calculateRightPadding(
-            androidx.compose.ui.unit.LayoutDirection.Ltr
-        )
-    ),
+    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
     icon = {
         Icon(
             modifier = Modifier.padding(horizontal = 4.dp),
@@ -248,8 +272,7 @@ private fun DrawerItem(
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = if (onLabelClick != null) Modifier.padding(0.dp) else Modifier
+            overflow = TextOverflow.Ellipsis
         )
     },
     badge = {
@@ -260,5 +283,5 @@ private fun DrawerItem(
     },
     shape = MaterialTheme.shapes.medium,
     selected = isSelected,
-    onClick = onLabelClick ?: onClick
+    onClick = onClick
 )
