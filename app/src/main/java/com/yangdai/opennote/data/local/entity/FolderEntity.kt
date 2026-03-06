@@ -10,7 +10,8 @@ import kotlinx.serialization.Serializable
 data class FolderEntity(
     @PrimaryKey val id: Long? = null,
     val name: String = "",
-    val color: Int? = null
+    val color: Int? = null,
+    val parentId: Long? = null
 ) {
     companion object {
         val folderColors = listOf(

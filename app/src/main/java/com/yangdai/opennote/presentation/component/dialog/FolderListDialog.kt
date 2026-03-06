@@ -46,6 +46,11 @@ fun FolderListDialog(
 
     var selectedFolderId by remember { mutableStateOf(oFolderId) }
 
+    // Build hierarchical folder list
+    val hierarchicalFolders = remember(folders) {
+        buildHierarchicalFolderList(folders)
+    }
+
     AlertDialog(
         title = { Text(text = hint) },
         text = {
@@ -82,13 +87,14 @@ fun FolderListDialog(
                             )
                         }
                     }
-                    items(folders) { folder ->
+                    items(hierarchicalFolders) { (folder, depth) ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
                                     selectedFolderId = folder.id
-                                },
+                                }
+                                .padding(start = (depth * 24).dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
@@ -134,6 +140,20 @@ fun FolderListDialog(
             }
         }
     )
+}
+
+private fun buildHierarchicalFolderList(
+    folders: List<FolderEntity>,
+    parentId: Long? = null,
+    depth: Int = 0
+): List<Pair<FolderEntity, Int>> {
+    val result = mutableListOf<Pair<FolderEntity, Int>>()
+    val children = folders.filter { it.parentId == parentId }
+    for (child in children) {
+        result.add(child to depth)
+        result.addAll(buildHierarchicalFolderList(folders, child.id, depth + 1))
+    }
+    return result
 }
 
 @Composable

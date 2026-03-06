@@ -716,12 +716,17 @@ fun MainScreen(
     }
 }
 
-private object FolderEntitySaver : Saver<FolderEntity, Triple<Long?, String, Int?>> {
-    override fun restore(value: Triple<Long?, String, Int?>): FolderEntity {
-        return FolderEntity(value.first, value.second, value.third)
+private object FolderEntitySaver : Saver<FolderEntity, List<Any?>> {
+    override fun restore(value: List<Any?>): FolderEntity {
+        return FolderEntity(
+            id = value[0] as? Long,
+            name = value[1] as? String ?: "",
+            color = value[2] as? Int,
+            parentId = value[3] as? Long
+        )
     }
 
-    override fun SaverScope.save(value: FolderEntity): Triple<Long?, String, Int?> {
-        return Triple(value.id, value.name, value.color)
+    override fun SaverScope.save(value: FolderEntity): List<Any?> {
+        return listOf(value.id, value.name, value.color, value.parentId)
     }
 }
