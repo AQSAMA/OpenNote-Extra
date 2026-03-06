@@ -202,6 +202,7 @@ fun MainScreen(
             DrawerContent(
                 folderNoteCounts = folderNoteCountsList,
                 selectedDrawerIndex = selectedNavDrawerIndex,
+                selectedFolderId = currentFolder.id,
                 showLock = settings.password.isNotEmpty(),
                 onLockClick = {
                     scope.launch { navigationDrawerState.close() }
@@ -716,17 +717,27 @@ fun MainScreen(
     }
 }
 
-private object FolderEntitySaver : Saver<FolderEntity, List<Any?>> {
-    override fun restore(value: List<Any?>): FolderEntity {
-        return FolderEntity(
-            id = value[0] as? Long,
-            name = value[1] as? String ?: "",
-            color = value[2] as? Int,
-            parentId = value[3] as? Long
-        )
+internal object FolderEntitySaver : Saver<FolderEntity, Any> {
+    override fun restore(value: Any): FolderEntity? {
+        return when (value) {
+            is List<*> -> FolderEntity(
+                id = value.getOrNull(0) as? Long,
+                name = value.getOrNull(1) as? String ?: "",
+                color = value.getOrNull(2) as? Int,
+                parentId = value.getOrNull(3) as? Long
+            )
+
+            is Triple<*, *, *> -> FolderEntity(
+                id = value.first as? Long,
+                name = value.second as? String ?: "",
+                color = value.third as? Int
+            )
+
+            else -> null
+        }
     }
 
-    override fun SaverScope.save(value: FolderEntity): List<Any?> {
+    override fun SaverScope.save(value: FolderEntity): Any {
         return listOf(value.id, value.name, value.color, value.parentId)
     }
 }

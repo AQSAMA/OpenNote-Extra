@@ -51,6 +51,7 @@ fun DrawerContent(
     folderNoteCounts: List<Pair<FolderEntity, Int>>,
     showLock: Boolean,
     selectedDrawerIndex: Int,
+    selectedFolderId: Long?,
     onLockClick: () -> Unit,
     navigateTo: (Screen) -> Unit,
     onDrawerItemClicked: (Int, FolderEntity) -> Unit
@@ -134,8 +135,11 @@ fun DrawerContent(
                         noteCount = pair.second,
                         allFolderNoteCounts = folderNoteCounts,
                         selectedDrawerIndex = selectedDrawerIndex,
-                        onFolderClicked = { clickedIndex, folderEntity ->
-                            onDrawerItemClicked(clickedIndex + 2, folderEntity)
+                        selectedFolderId = selectedFolderId,
+                        onFolderClicked = { folderEntity ->
+                            folderDrawerIndex(folderEntity.id, folderNoteCounts)?.let { folderIndex ->
+                                onDrawerItemClicked(folderIndex, folderEntity)
+                            }
                         },
                         depth = 0
                     )
@@ -160,14 +164,18 @@ private fun DrawerFolderWithChildren(
     noteCount: Int,
     allFolderNoteCounts: List<Pair<FolderEntity, Int>>,
     selectedDrawerIndex: Int,
-    onFolderClicked: (Int, FolderEntity) -> Unit,
+    selectedFolderId: Long?,
+    onFolderClicked: (FolderEntity) -> Unit,
     depth: Int
 ) {
     val children = allFolderNoteCounts.filter { it.first.parentId == folder.id }
     val hasChildren = children.isNotEmpty()
     var isExpanded by rememberSaveable { mutableStateOf(false) }
-    val folderIndex = allFolderNoteCounts.indexOf(folder to noteCount)
-    val isSelected = selectedDrawerIndex == folderIndex + 2
+    val isSelected = isFolderDrawerItemSelected(
+        selectedDrawerIndex = selectedDrawerIndex,
+        selectedFolderId = selectedFolderId,
+        folderId = folder.id
+    )
 
     Row(
         modifier = Modifier.padding(
@@ -226,7 +234,7 @@ private fun DrawerFolderWithChildren(
             },
             shape = MaterialTheme.shapes.medium,
             selected = isSelected,
-            onClick = { onFolderClicked(folderIndex, folder) }
+            onClick = { onFolderClicked(folder) }
         )
     }
 
@@ -239,6 +247,7 @@ private fun DrawerFolderWithChildren(
                         noteCount = childPair.second,
                         allFolderNoteCounts = allFolderNoteCounts,
                         selectedDrawerIndex = selectedDrawerIndex,
+                        selectedFolderId = selectedFolderId,
                         onFolderClicked = onFolderClicked,
                         depth = depth + 1
                     )
@@ -247,6 +256,19 @@ private fun DrawerFolderWithChildren(
         }
     }
 }
+
+internal fun folderDrawerIndex(
+    folderId: Long?,
+    allFolderNoteCounts: List<Pair<FolderEntity, Int>>
+): Int? = allFolderNoteCounts.indexOfFirst { it.first.id == folderId }
+    .takeIf { it >= 0 }
+    ?.plus(2)
+
+internal fun isFolderDrawerItemSelected(
+    selectedDrawerIndex: Int,
+    selectedFolderId: Long?,
+    folderId: Long?
+): Boolean = selectedDrawerIndex > 1 && selectedFolderId == folderId
 
 @Composable
 private fun DrawerItem(

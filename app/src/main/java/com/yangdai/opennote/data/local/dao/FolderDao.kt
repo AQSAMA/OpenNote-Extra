@@ -15,9 +15,6 @@ interface FolderDao {
     @Query("SELECT * FROM FOLDERENTITY")
     fun getAllFolders(): Flow<List<FolderEntity>>
 
-    @Query("SELECT * FROM FOLDERENTITY WHERE parentId IS NULL")
-    fun getRootFolders(): Flow<List<FolderEntity>>
-
     @Query("SELECT * FROM FOLDERENTITY WHERE parentId = :parentId")
     fun getSubFolders(parentId: Long): Flow<List<FolderEntity>>
 
@@ -27,13 +24,7 @@ interface FolderDao {
     @Delete
     suspend fun deleteFolder(folderEntity: FolderEntity)
 
-    @Query("DELETE FROM FOLDERENTITY WHERE parentId = :parentId")
-    suspend fun deleteSubFolders(parentId: Long)
-
     @Update
     suspend fun updateFolder(folderEntity: FolderEntity)
-
-    @Query("UPDATE FOLDERENTITY SET parentId = NULL WHERE parentId = :parentId")
-    suspend fun clearParentId(parentId: Long)
 
 }

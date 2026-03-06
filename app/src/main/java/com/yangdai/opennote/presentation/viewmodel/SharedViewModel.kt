@@ -6,6 +6,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import androidx.room.withTransaction
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.util.fastJoinToString
 import androidx.core.net.toUri
@@ -442,10 +443,11 @@ class SharedViewModel @Inject constructor(
                 }
 
                 is FolderEvent.DeleteFolder -> {
-                    // Recursively delete all subfolders and their notes
-                    deleteSubFoldersRecursively(event.folder.id)
-                    useCases.deleteNotesByFolderId(event.folder.id)
-                    useCases.deleteFolder(event.folder)
+                    database.withTransaction {
+                        deleteSubFoldersRecursively(event.folder.id)
+                        useCases.deleteNotesByFolderId(event.folder.id)
+                        useCases.deleteFolder(event.folder)
+                    }
                 }
 
                 is FolderEvent.UpdateFolder -> {
