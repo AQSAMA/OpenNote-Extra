@@ -46,6 +46,12 @@ fun FolderListDialog(
 
     var selectedFolderId by remember { mutableStateOf(oFolderId) }
 
+    // Build hierarchical folder list
+    val hierarchicalFolders = remember(folders) {
+        val allIds = folders.mapNotNull { it.id }.toSet()
+        buildHierarchicalFolderList(folders, allIds)
+    }
+
     AlertDialog(
         title = { Text(text = hint) },
         text = {
@@ -82,13 +88,14 @@ fun FolderListDialog(
                             )
                         }
                     }
-                    items(folders) { folder ->
+                    items(hierarchicalFolders) { (folder, depth) ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
                                     selectedFolderId = folder.id
-                                },
+                                }
+                                .padding(start = (depth * 24).dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
@@ -134,6 +141,28 @@ fun FolderListDialog(
             }
         }
     )
+}
+
+private fun buildHierarchicalFolderList(
+    folders: List<FolderEntity>,
+    allIds: Set<Long>,
+    parentId: Long? = null,
+    depth: Int = 0,
+    visited: MutableSet<Long?> = mutableSetOf()
+): List<Pair<FolderEntity, Int>> {
+    if (!visited.add(parentId) || depth > FolderEntity.MAX_FOLDER_DEPTH) return emptyList()
+    val result = mutableListOf<Pair<FolderEntity, Int>>()
+    val children = if (parentId == null) {
+        // At root level, include orphaned folders whose parentId doesn't match any existing folder
+        folders.filter { it.parentId == null || it.parentId !in allIds }
+    } else {
+        folders.filter { it.parentId == parentId }
+    }
+    for (child in children) {
+        result.add(child to depth)
+        result.addAll(buildHierarchicalFolderList(folders, allIds, child.id, depth + 1, visited))
+    }
+    return result
 }
 
 @Composable

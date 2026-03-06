@@ -6,6 +6,7 @@
     <string name="trash">Trash</string>
     <string name="folders">Folders</string>
     <string name="manage_folders">Manage folders</string>
+    <string name="create_subfolder">Create subfolder</string>
     <string name="settings">Settings</string>
     <string name="style">Style</string>
     <string name="dark_mode">Dark mode</string>

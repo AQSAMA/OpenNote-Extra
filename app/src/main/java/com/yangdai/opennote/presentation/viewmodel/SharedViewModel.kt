@@ -12,6 +12,7 @@ import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.room.withTransaction
 import com.yangdai.opennote.data.local.Database
 import com.yangdai.opennote.data.local.entity.BackupData
 import com.yangdai.opennote.data.local.entity.NoteEntity
@@ -442,14 +443,31 @@ class SharedViewModel @Inject constructor(
                 }
 
                 is FolderEvent.DeleteFolder -> {
-                    useCases.deleteNotesByFolderId(event.folder.id)
-                    useCases.deleteFolder(event.folder)
+                    database.withTransaction {
+                        // Recursively delete all subfolders and their notes
+                        deleteSubFoldersRecursively(event.folder.id, mutableSetOf())
+                        useCases.deleteNotesByFolderId(event.folder.id)
+                        useCases.deleteFolder(event.folder)
+                    }
                 }
 
                 is FolderEvent.UpdateFolder -> {
                     useCases.updateFolder(event.folder)
                 }
             }
+        }
+    }
+
+    private suspend fun deleteSubFoldersRecursively(
+        folderId: Long?,
+        visited: MutableSet<Long>
+    ) {
+        if (folderId == null || !visited.add(folderId)) return
+        val subFolders = useCases.getSubFolders(folderId).first()
+        for (subFolder in subFolders) {
+            deleteSubFoldersRecursively(subFolder.id, visited)
+            useCases.deleteNotesByFolderId(subFolder.id)
+            useCases.deleteFolder(subFolder)
         }
     }
 

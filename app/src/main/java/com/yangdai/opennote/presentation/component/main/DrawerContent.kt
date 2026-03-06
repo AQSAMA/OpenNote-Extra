@@ -125,16 +125,22 @@ fun DrawerContent(
 
     AnimatedVisibility(visible = isFoldersExpended) {
         Column {
-            folderNoteCounts.forEachIndexed { index, pair ->
+            // Build folder hierarchy: show root folders and orphaned folders as top-level
+            val allIds = folderNoteCounts.mapNotNull { it.first.id }.toSet()
+            val topLevelFolders = folderNoteCounts.filter {
+                it.first.parentId == null || it.first.parentId !in allIds
+            }
+            topLevelFolders.forEach { pair ->
                 key(pair.first.id) {
-                    DrawerItem(
-                        icon = Icons.Outlined.FolderOpen,
-                        iconTint = pair.first.color?.let { Color(it) }
-                            ?: MaterialTheme.colorScheme.primary,
-                        label = pair.first.name,
-                        badge = pair.second.toString(),
-                        isSelected = selectedDrawerIndex == index + 2,
-                        onClick = { onDrawerItemClicked(index + 2, pair.first) }
+                    DrawerFolderWithChildren(
+                        folder = pair.first,
+                        noteCount = pair.second,
+                        allFolderNoteCounts = folderNoteCounts,
+                        selectedDrawerIndex = selectedDrawerIndex,
+                        onFolderClicked = { clickedIndex, folderEntity ->
+                            onDrawerItemClicked(clickedIndex + 2, folderEntity)
+                        },
+                        depth = 0
                     )
                 }
             }
@@ -148,6 +154,101 @@ fun DrawerContent(
         onClick = { navigateTo(Folders) }
     ) {
         Text(text = stringResource(R.string.manage_folders), textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+private fun DrawerFolderWithChildren(
+    folder: FolderEntity,
+    noteCount: Int,
+    allFolderNoteCounts: List<Pair<FolderEntity, Int>>,
+    selectedDrawerIndex: Int,
+    onFolderClicked: (Int, FolderEntity) -> Unit,
+    depth: Int
+) {
+    if (depth > FolderEntity.MAX_FOLDER_DEPTH) return
+    val children = allFolderNoteCounts.filter { it.first.parentId == folder.id }
+    val hasChildren = children.isNotEmpty()
+    var isExpanded by rememberSaveable { mutableStateOf(false) }
+    val folderIndex = allFolderNoteCounts.indexOf(folder to noteCount)
+    val isSelected = selectedDrawerIndex == folderIndex + 2
+
+    Row(
+        modifier = Modifier.padding(
+            start = NavigationDrawerItemDefaults.ItemPadding.calculateLeftPadding(
+                androidx.compose.ui.unit.LayoutDirection.Ltr
+            ) + (depth * 16).dp
+        ),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (hasChildren) {
+            IconButton(
+                onClick = { isExpanded = !isExpanded },
+                modifier = Modifier.padding(0.dp)
+            ) {
+                Icon(
+                    imageVector = if (!isExpanded) Icons.AutoMirrored.Outlined.KeyboardArrowRight
+                    else Icons.Outlined.KeyboardArrowDown,
+                    contentDescription = "Toggle expand",
+                    tint = folder.color?.let { Color(it) }
+                        ?: MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+
+        NavigationDrawerItem(
+            modifier = Modifier.padding(
+                end = NavigationDrawerItemDefaults.ItemPadding.calculateRightPadding(
+                    androidx.compose.ui.unit.LayoutDirection.Ltr
+                )
+            ),
+            icon = {
+                if (!hasChildren) {
+                    Icon(
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                        imageVector = Icons.Outlined.FolderOpen,
+                        tint = folder.color?.let { Color(it) }
+                            ?: MaterialTheme.colorScheme.primary,
+                        contentDescription = "Folder Icon"
+                    )
+                }
+            },
+            label = {
+                Text(
+                    text = folder.name,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
+            badge = {
+                Text(
+                    text = noteCount.toString(),
+                    style = MaterialTheme.typography.labelMedium
+                )
+            },
+            shape = MaterialTheme.shapes.medium,
+            selected = isSelected,
+            onClick = { onFolderClicked(folderIndex, folder) }
+        )
+    }
+
+    AnimatedVisibility(visible = isExpanded && hasChildren) {
+        Column {
+            children.forEach { childPair ->
+                key(childPair.first.id) {
+                    DrawerFolderWithChildren(
+                        folder = childPair.first,
+                        noteCount = childPair.second,
+                        allFolderNoteCounts = allFolderNoteCounts,
+                        selectedDrawerIndex = selectedDrawerIndex,
+                        onFolderClicked = onFolderClicked,
+                        depth = depth + 1
+                    )
+                }
+            }
+        }
     }
 }
 

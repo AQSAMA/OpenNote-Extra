@@ -10,7 +10,7 @@ import com.yangdai.opennote.data.local.entity.FolderEntity
 import com.yangdai.opennote.data.local.entity.NoteEntity
 
 @Database(
-    version = 2,
+    version = 3,
     entities = [NoteEntity::class, FolderEntity::class]
 )
 abstract class Database : RoomDatabase() {
@@ -27,5 +27,11 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         // 添加索引
         db.execSQL("CREATE INDEX IF NOT EXISTS `idx_deleted_timestamp` ON `NoteEntity` (`isDeleted`, `timestamp`)")
         db.execSQL("CREATE INDEX IF NOT EXISTS `idx_folder_deleted_timestamp` ON `NoteEntity` (`folderId`, `isDeleted`, `timestamp`)")
+    }
+}
+
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE FolderEntity ADD COLUMN parentId INTEGER DEFAULT NULL")
     }
 }

@@ -13,6 +13,14 @@ class FolderRepositoryImpl(
         return dao.getAllFolders()
     }
 
+    override fun getRootFolders(): Flow<List<FolderEntity>> {
+        return dao.getRootFolders()
+    }
+
+    override fun getSubFolders(parentId: Long): Flow<List<FolderEntity>> {
+        return dao.getSubFolders(parentId)
+    }
+
     override suspend fun insertFolder(folderEntity: FolderEntity) {
         dao.insertFolder(folderEntity)
     }
@@ -21,8 +29,16 @@ class FolderRepositoryImpl(
         dao.deleteFolder(folderEntity)
     }
 
+    override suspend fun deleteSubFolders(parentId: Long) {
+        dao.deleteSubFolders(parentId)
+    }
+
     override suspend fun updateFolder(folderEntity: FolderEntity) {
         dao.updateFolder(folderEntity)
+    }
+
+    override suspend fun clearParentId(parentId: Long) {
+        dao.clearParentId(parentId)
     }
 
 }

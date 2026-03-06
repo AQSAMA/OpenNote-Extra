@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.yangdai.opennote.data.local.Database
 import com.yangdai.opennote.data.local.MIGRATION_1_2
+import com.yangdai.opennote.data.local.MIGRATION_2_3
 import com.yangdai.opennote.data.repository.AppDataStoreRepositoryImpl
 import com.yangdai.opennote.data.repository.FolderRepositoryImpl
 import com.yangdai.opennote.data.repository.NoteRepositoryImpl
@@ -25,6 +26,7 @@ import com.yangdai.opennote.domain.repository.FolderRepository
 import com.yangdai.opennote.domain.repository.WidgetDataStoreRepository
 import com.yangdai.opennote.domain.usecase.GetNoteById
 import com.yangdai.opennote.domain.usecase.GetNotesCountByFolderId
+import com.yangdai.opennote.domain.usecase.GetSubFolders
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -53,7 +55,7 @@ object AppModule {
             context,
             Database::class.java,
             Database.NAME
-        ).addMigrations(MIGRATION_1_2).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
 
     @Provides
     @Singleton
@@ -82,6 +84,7 @@ object AppModule {
         updateFolder = UpdateFolder(folderRepository),
         deleteFolder = DeleteFolder(folderRepository),
         getFolders = GetFolders(folderRepository),
+        getSubFolders = GetSubFolders(folderRepository),
         getNotesCountByFolderId = GetNotesCountByFolderId(noteRepository)
     )
 }
