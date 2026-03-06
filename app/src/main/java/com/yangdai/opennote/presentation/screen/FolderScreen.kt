@@ -124,13 +124,16 @@ fun FolderScreen(
         }
     ) { paddingValues ->
 
-        val rootFolders = folderNoteCounts.filter { it.first.parentId == null }
+        val allIds = folderNoteCounts.mapNotNull { it.first.id }.toSet()
+        val topLevelFolders = folderNoteCounts.filter {
+            it.first.parentId == null || it.first.parentId !in allIds
+        }
 
         LazyColumn(
             modifier = Modifier.padding(horizontal = 16.dp),
             contentPadding = paddingValues
         ) {
-            items(rootFolders, key = { it.first.id!! }) { pair ->
+            items(topLevelFolders, key = { it.first.id!! }) { pair ->
                 FolderItemWithChildren(
                     folder = pair.first,
                     notesCountInFolder = pair.second,
@@ -175,6 +178,7 @@ fun FolderItemWithChildren(
     onDelete: (FolderEntity) -> Unit,
     onCreateSubfolder: (Long) -> Unit
 ) {
+    if (depth > 10) return
     val children = allFolderNoteCounts.filter { it.first.parentId == folder.id }
     val hasChildren = children.isNotEmpty()
     var isExpanded by rememberSaveable { mutableStateOf(true) }

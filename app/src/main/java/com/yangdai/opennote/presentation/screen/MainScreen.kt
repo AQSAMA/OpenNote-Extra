@@ -719,10 +719,10 @@ fun MainScreen(
 private object FolderEntitySaver : Saver<FolderEntity, List<Any?>> {
     override fun restore(value: List<Any?>): FolderEntity {
         return FolderEntity(
-            id = value[0] as? Long,
-            name = value[1] as? String ?: "",
-            color = value[2] as? Int,
-            parentId = value[3] as? Long
+            id = value.getOrNull(0) as? Long,
+            name = value.getOrNull(1) as? String ?: "",
+            color = value.getOrNull(2) as? Int,
+            parentId = value.getOrNull(3) as? Long
         )
     }
 

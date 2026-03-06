@@ -145,13 +145,21 @@ fun FolderListDialog(
 private fun buildHierarchicalFolderList(
     folders: List<FolderEntity>,
     parentId: Long? = null,
-    depth: Int = 0
+    depth: Int = 0,
+    visited: MutableSet<Long?> = mutableSetOf()
 ): List<Pair<FolderEntity, Int>> {
+    if (!visited.add(parentId) || depth > 10) return emptyList()
+    val allIds = folders.mapNotNull { it.id }.toSet()
     val result = mutableListOf<Pair<FolderEntity, Int>>()
-    val children = folders.filter { it.parentId == parentId }
+    val children = if (parentId == null) {
+        // At root level, include orphaned folders whose parentId doesn't match any existing folder
+        folders.filter { it.parentId == null || it.parentId !in allIds }
+    } else {
+        folders.filter { it.parentId == parentId }
+    }
     for (child in children) {
         result.add(child to depth)
-        result.addAll(buildHierarchicalFolderList(folders, child.id, depth + 1))
+        result.addAll(buildHierarchicalFolderList(folders, child.id, depth + 1, visited))
     }
     return result
 }

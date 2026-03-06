@@ -125,9 +125,12 @@ fun DrawerContent(
 
     AnimatedVisibility(visible = isFoldersExpended) {
         Column {
-            // Build folder hierarchy: show root folders first, then their children
-            val rootFolders = folderNoteCounts.filter { it.first.parentId == null }
-            rootFolders.forEach { pair ->
+            // Build folder hierarchy: show root folders and orphaned folders as top-level
+            val allIds = folderNoteCounts.mapNotNull { it.first.id }.toSet()
+            val topLevelFolders = folderNoteCounts.filter {
+                it.first.parentId == null || it.first.parentId !in allIds
+            }
+            topLevelFolders.forEach { pair ->
                 key(pair.first.id) {
                     DrawerFolderWithChildren(
                         folder = pair.first,
@@ -163,6 +166,7 @@ private fun DrawerFolderWithChildren(
     onFolderClicked: (Int, FolderEntity) -> Unit,
     depth: Int
 ) {
+    if (depth > 10) return
     val children = allFolderNoteCounts.filter { it.first.parentId == folder.id }
     val hasChildren = children.isNotEmpty()
     var isExpanded by rememberSaveable { mutableStateOf(false) }
