@@ -202,6 +202,7 @@ fun MainScreen(
             DrawerContent(
                 folderNoteCounts = folderNoteCountsList,
                 selectedDrawerIndex = selectedNavDrawerIndex,
+                selectedFolderId = currentFolder.id,
                 showLock = settings.password.isNotEmpty(),
                 onLockClick = {
                     scope.launch { navigationDrawerState.close() }
@@ -716,12 +717,50 @@ fun MainScreen(
     }
 }
 
-private object FolderEntitySaver : Saver<FolderEntity, Triple<Long?, String, Int?>> {
-    override fun restore(value: Triple<Long?, String, Int?>): FolderEntity {
-        return FolderEntity(value.first, value.second, value.third)
+internal object FolderEntitySaver : Saver<FolderEntity, Any> {
+    override fun restore(value: Any): FolderEntity? {
+        return when (value) {
+            is List<*> -> restoreFolderEntityFromList(value)
+            is Triple<*, *, *> -> restoreFolderEntityFromTriple(value)
+
+            else -> null
+        }
     }
 
-    override fun SaverScope.save(value: FolderEntity): Triple<Long?, String, Int?> {
-        return Triple(value.id, value.name, value.color)
+    override fun SaverScope.save(value: FolderEntity): Any {
+        return listOf(value.id, value.name, value.color, value.parentId)
     }
+}
+
+private fun restoreFolderEntityFromList(value: List<*>): FolderEntity? {
+    if (value.size < 3) return null
+
+    val rawId = value.getOrNull(0)
+    val rawName = value.getOrNull(1)
+    val rawColor = value.getOrNull(2)
+    val rawParentId = value.getOrNull(3)
+
+    if (rawId != null && rawId !is Long) return null
+    if (rawName != null && rawName !is String) return null
+    if (rawColor != null && rawColor !is Int) return null
+    if (rawParentId != null && rawParentId !is Long) return null
+
+    return FolderEntity(
+        id = rawId as? Long,
+        name = rawName as? String ?: "",
+        color = rawColor as? Int,
+        parentId = rawParentId as? Long
+    )
+}
+
+private fun restoreFolderEntityFromTriple(value: Triple<*, *, *>): FolderEntity? {
+    if (value.first != null && value.first !is Long) return null
+    if (value.second != null && value.second !is String) return null
+    if (value.third != null && value.third !is Int) return null
+
+    return FolderEntity(
+        id = value.first as? Long,
+        name = value.second as? String ?: "",
+        color = value.third as? Int
+    )
 }

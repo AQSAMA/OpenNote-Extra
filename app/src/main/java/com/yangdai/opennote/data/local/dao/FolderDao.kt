@@ -15,6 +15,9 @@ interface FolderDao {
     @Query("SELECT * FROM FOLDERENTITY")
     fun getAllFolders(): Flow<List<FolderEntity>>
 
+    @Query("SELECT * FROM FOLDERENTITY WHERE parentId = :parentId")
+    fun getSubFolders(parentId: Long): Flow<List<FolderEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFolder(folderEntity: FolderEntity)
 

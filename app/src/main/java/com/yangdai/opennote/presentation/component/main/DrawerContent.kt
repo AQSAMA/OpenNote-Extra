@@ -46,11 +46,14 @@ import com.yangdai.opennote.presentation.navigation.Screen
 import com.yangdai.opennote.presentation.navigation.Screen.Folders
 import com.yangdai.opennote.presentation.navigation.Screen.Settings
 
+private const val FIRST_FOLDER_DRAWER_INDEX = 2
+
 @Composable
 fun DrawerContent(
     folderNoteCounts: List<Pair<FolderEntity, Int>>,
     showLock: Boolean,
     selectedDrawerIndex: Int,
+    selectedFolderId: Long?,
     onLockClick: () -> Unit,
     navigateTo: (Screen) -> Unit,
     onDrawerItemClicked: (Int, FolderEntity) -> Unit
@@ -125,16 +128,22 @@ fun DrawerContent(
 
     AnimatedVisibility(visible = isFoldersExpended) {
         Column {
-            folderNoteCounts.forEachIndexed { index, pair ->
+            // Build folder hierarchy: show root folders first, then their children
+            val rootFolders = folderNoteCounts.filter { it.first.parentId == null }
+            rootFolders.forEach { pair ->
                 key(pair.first.id) {
-                    DrawerItem(
-                        icon = Icons.Outlined.FolderOpen,
-                        iconTint = pair.first.color?.let { Color(it) }
-                            ?: MaterialTheme.colorScheme.primary,
-                        label = pair.first.name,
-                        badge = pair.second.toString(),
-                        isSelected = selectedDrawerIndex == index + 2,
-                        onClick = { onDrawerItemClicked(index + 2, pair.first) }
+                    DrawerFolderWithChildren(
+                        folder = pair.first,
+                        noteCount = pair.second,
+                        allFolderNoteCounts = folderNoteCounts,
+                        selectedDrawerIndex = selectedDrawerIndex,
+                        selectedFolderId = selectedFolderId,
+                        onFolderClicked = { folderEntity ->
+                            folderDrawerIndex(folderEntity.id, folderNoteCounts)?.let { folderIndex ->
+                                onDrawerItemClicked(folderIndex, folderEntity)
+                            }
+                        },
+                        depth = 0
                     )
                 }
             }
@@ -150,6 +159,118 @@ fun DrawerContent(
         Text(text = stringResource(R.string.manage_folders), textAlign = TextAlign.Center)
     }
 }
+
+@Composable
+private fun DrawerFolderWithChildren(
+    folder: FolderEntity,
+    noteCount: Int,
+    allFolderNoteCounts: List<Pair<FolderEntity, Int>>,
+    selectedDrawerIndex: Int,
+    selectedFolderId: Long?,
+    onFolderClicked: (FolderEntity) -> Unit,
+    depth: Int
+) {
+    val children = allFolderNoteCounts.filter { it.first.parentId == folder.id }
+    val hasChildren = children.isNotEmpty()
+    var isExpanded by rememberSaveable { mutableStateOf(false) }
+    val isSelected = isFolderDrawerItemSelected(
+        selectedDrawerIndex = selectedDrawerIndex,
+        selectedFolderId = selectedFolderId,
+        folderId = folder.id
+    )
+
+    Row(
+        modifier = Modifier.padding(
+            start = NavigationDrawerItemDefaults.ItemPadding.calculateLeftPadding(
+                androidx.compose.ui.unit.LayoutDirection.Ltr
+            ) + (depth * 16).dp
+        ),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (hasChildren) {
+            IconButton(
+                onClick = { isExpanded = !isExpanded },
+                modifier = Modifier.padding(0.dp)
+            ) {
+                Icon(
+                    imageVector = if (!isExpanded) Icons.AutoMirrored.Outlined.KeyboardArrowRight
+                    else Icons.Outlined.KeyboardArrowDown,
+                    contentDescription = "Toggle expand",
+                    tint = folder.color?.let { Color(it) }
+                        ?: MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+
+        NavigationDrawerItem(
+            modifier = Modifier.padding(
+                end = NavigationDrawerItemDefaults.ItemPadding.calculateRightPadding(
+                    androidx.compose.ui.unit.LayoutDirection.Ltr
+                )
+            ),
+            icon = {
+                if (!hasChildren) {
+                    Icon(
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                        imageVector = Icons.Outlined.FolderOpen,
+                        tint = folder.color?.let { Color(it) }
+                            ?: MaterialTheme.colorScheme.primary,
+                        contentDescription = "Folder Icon"
+                    )
+                }
+            },
+            label = {
+                Text(
+                    text = folder.name,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
+            badge = {
+                Text(
+                    text = noteCount.toString(),
+                    style = MaterialTheme.typography.labelMedium
+                )
+            },
+            shape = MaterialTheme.shapes.medium,
+            selected = isSelected,
+            onClick = { onFolderClicked(folder) }
+        )
+    }
+
+    AnimatedVisibility(visible = isExpanded && hasChildren) {
+        Column {
+            children.forEach { childPair ->
+                key(childPair.first.id) {
+                    DrawerFolderWithChildren(
+                        folder = childPair.first,
+                        noteCount = childPair.second,
+                        allFolderNoteCounts = allFolderNoteCounts,
+                        selectedDrawerIndex = selectedDrawerIndex,
+                        selectedFolderId = selectedFolderId,
+                        onFolderClicked = onFolderClicked,
+                        depth = depth + 1
+                    )
+                }
+            }
+        }
+    }
+}
+
+internal fun folderDrawerIndex(
+    folderId: Long?,
+    allFolderNoteCounts: List<Pair<FolderEntity, Int>>
+): Int? = allFolderNoteCounts.indexOfFirst { it.first.id == folderId }
+    .takeIf { it >= 0 }
+    ?.plus(FIRST_FOLDER_DRAWER_INDEX)
+
+internal fun isFolderDrawerItemSelected(
+    selectedDrawerIndex: Int,
+    selectedFolderId: Long?,
+    folderId: Long?
+): Boolean = selectedDrawerIndex >= FIRST_FOLDER_DRAWER_INDEX && selectedFolderId == folderId
 
 @Composable
 private fun DrawerItem(

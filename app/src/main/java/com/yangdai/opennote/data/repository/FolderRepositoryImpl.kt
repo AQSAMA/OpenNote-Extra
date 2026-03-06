@@ -13,6 +13,10 @@ class FolderRepositoryImpl(
         return dao.getAllFolders()
     }
 
+    override fun getSubFolders(parentId: Long): Flow<List<FolderEntity>> {
+        return dao.getSubFolders(parentId)
+    }
+
     override suspend fun insertFolder(folderEntity: FolderEntity) {
         dao.insertFolder(folderEntity)
     }

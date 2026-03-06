@@ -6,6 +6,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import androidx.room.withTransaction
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.util.fastJoinToString
 import androidx.core.net.toUri
@@ -14,6 +15,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yangdai.opennote.data.local.Database
 import com.yangdai.opennote.data.local.entity.BackupData
+import com.yangdai.opennote.data.local.entity.FolderEntity
 import com.yangdai.opennote.data.local.entity.NoteEntity
 import com.yangdai.opennote.domain.repository.AppDataStoreRepository
 import com.yangdai.opennote.domain.usecase.NoteOrder
@@ -442,14 +444,40 @@ class SharedViewModel @Inject constructor(
                 }
 
                 is FolderEvent.DeleteFolder -> {
-                    useCases.deleteNotesByFolderId(event.folder.id)
-                    useCases.deleteFolder(event.folder)
+                    database.withTransaction {
+                        deleteSubFoldersRecursively(event.folder.id)
+                        useCases.deleteNotesByFolderId(event.folder.id)
+                        useCases.deleteFolder(event.folder)
+                    }
                 }
 
                 is FolderEvent.UpdateFolder -> {
                     useCases.updateFolder(event.folder)
                 }
             }
+        }
+    }
+
+    private suspend fun deleteSubFoldersRecursively(folderId: Long?) {
+        if (folderId == null) return
+
+        val pendingFolderIds = ArrayDeque<Long>()
+        val subFoldersToDelete = mutableListOf<FolderEntity>()
+        pendingFolderIds.addLast(folderId)
+
+        while (pendingFolderIds.isNotEmpty()) {
+            val currentFolderId = pendingFolderIds.removeLast()
+            val subFolders = useCases.getSubFolders(currentFolderId).first()
+
+            for (subFolder in subFolders) {
+                subFolder.id?.let(pendingFolderIds::addLast)
+                subFoldersToDelete.add(subFolder)
+            }
+        }
+
+        for (subFolder in subFoldersToDelete.asReversed()) {
+            useCases.deleteNotesByFolderId(subFolder.id)
+            useCases.deleteFolder(subFolder)
         }
     }
 
