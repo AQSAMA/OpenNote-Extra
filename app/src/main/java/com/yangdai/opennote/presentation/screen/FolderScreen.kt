@@ -6,7 +6,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,17 +16,19 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyGridItemScope
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DriveFileRenameOutline
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.DropdownMenu
@@ -72,6 +73,7 @@ import com.yangdai.opennote.presentation.component.TopBarTitle
 import com.yangdai.opennote.presentation.component.dialog.ModifyFolderDialog
 import com.yangdai.opennote.presentation.component.dialog.WarningDialog
 import com.yangdai.opennote.presentation.event.FolderEvent
+import com.yangdai.opennote.presentation.util.flattenFolderTree
 import com.yangdai.opennote.presentation.viewmodel.SharedViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -82,10 +84,29 @@ fun FolderScreen(
     sharedViewModel: SharedViewModel = hiltViewModel(LocalActivity.current as MainActivity),
     navigateUp: () -> Unit
 ) {
-
     val folderNoteCounts by sharedViewModel.folderWithNoteCountsFlow.collectAsStateWithLifecycle()
+    val folders = remember(folderNoteCounts) { folderNoteCounts.map { it.first } }
 
     var showAddFolderDialog by rememberSaveable { mutableStateOf(false) }
+    var expandedFolderIds by rememberSaveable { mutableStateOf<List<Long>>(emptyList()) }
+    var initializedFolderExpansion by rememberSaveable { mutableStateOf(false) }
+
+    val foldersWithChildren = remember(folders) {
+        folders.filter { folder ->
+            val folderId = folder.id
+            folderId != null && folders.any { it.parentId == folderId }
+        }.mapNotNull { it.id }
+    }
+    val flattenedFolders = remember(folderNoteCounts, expandedFolderIds) {
+        flattenFolderTree(folderNoteCounts, expandedFolderIds.toSet())
+    }
+
+    LaunchedEffect(foldersWithChildren) {
+        if (!initializedFolderExpansion && foldersWithChildren.isNotEmpty()) {
+            expandedFolderIds = foldersWithChildren
+            initializedFolderExpansion = true
+        }
+    }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
@@ -118,24 +139,39 @@ fun FolderScreen(
             )
         }
     ) { paddingValues ->
-
-        LazyVerticalGrid(
-            modifier = Modifier.padding(horizontal = 16.dp),
-            columns = GridCells.Adaptive(360.dp),
-            contentPadding = paddingValues,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            contentPadding = paddingValues
         ) {
-            items(folderNoteCounts, key = { it.first.id!! }, contentType = { "FolderItem" }) {
+            items(flattenedFolders, key = { it.folder.id ?: Long.MIN_VALUE }) { item ->
                 FolderItem(
-                    folder = it.first,
-                    notesCountInFolder = it.second,
+                    folder = item.folder,
+                    folders = folders,
+                    notesCountInFolder = item.noteCount,
+                    depth = item.depth,
+                    hasChildren = item.hasChildren,
+                    isExpanded = item.folder.id in expandedFolderIds,
+                    onExpandToggle = item.folder.id?.let { folderId ->
+                        {
+                            expandedFolderIds = if (folderId in expandedFolderIds) {
+                                expandedFolderIds - folderId
+                            } else {
+                                expandedFolderIds + folderId
+                            }
+                        }
+                    },
                     onModify = { folderEntity ->
-                        sharedViewModel.onFolderEvent(
-                            FolderEvent.UpdateFolder(folderEntity)
-                        )
+                        sharedViewModel.onFolderEvent(FolderEvent.UpdateFolder(folderEntity))
                     },
                     onDelete = {
-                        sharedViewModel.onFolderEvent(FolderEvent.DeleteFolder(it.first))
+                        sharedViewModel.onFolderEvent(FolderEvent.DeleteFolder(item.folder))
+                    },
+                    onToggleFavorite = { folderEntity ->
+                        sharedViewModel.onFolderEvent(
+                            FolderEvent.UpdateFolder(folderEntity.copy(isFavorite = !folderEntity.isFavorite))
+                        )
                     }
                 )
             }
@@ -144,22 +180,27 @@ fun FolderScreen(
         if (showAddFolderDialog) {
             ModifyFolderDialog(
                 folder = FolderEntity(),
+                folders = folders,
                 onDismissRequest = { showAddFolderDialog = false }
             ) {
-                sharedViewModel.onFolderEvent(
-                    FolderEvent.AddFolder(it)
-                )
+                sharedViewModel.onFolderEvent(FolderEvent.AddFolder(it))
             }
         }
     }
 }
 
 @Composable
-fun LazyGridItemScope.FolderItem(
+fun FolderItem(
     folder: FolderEntity,
+    folders: List<FolderEntity>,
     notesCountInFolder: Int,
+    depth: Int,
+    hasChildren: Boolean,
+    isExpanded: Boolean,
+    onExpandToggle: (() -> Unit)?,
     onModify: (FolderEntity) -> Unit,
     onDelete: () -> Unit,
+    onToggleFavorite: (FolderEntity) -> Unit,
     colorScheme: ColorScheme = MaterialTheme.colorScheme
 ) {
     var showModifyDialog by remember { mutableStateOf(false) }
@@ -183,13 +224,11 @@ fun LazyGridItemScope.FolderItem(
         onDismiss = { dismissDirection ->
             when (dismissDirection) {
                 SwipeToDismissBoxValue.StartToEnd -> {
-                    // Edit action (right swipe)
                     showModifyDialog = true
                     scope.launch { dismissState.reset() }
                 }
 
                 SwipeToDismissBoxValue.EndToStart -> {
-                    // Delete action (left swipe)
                     showWarningDialog = true
                     scope.launch { dismissState.reset() }
                 }
@@ -248,9 +287,8 @@ fun LazyGridItemScope.FolderItem(
             }
         },
         modifier = Modifier
-            .padding(bottom = 16.dp)
+            .padding(bottom = 12.dp)
             .clip(CardDefaults.elevatedShape)
-            .animateItem()
             .hoverable(interactionSource)
             .pointerInput(Unit) {
                 detectTapGestures(
@@ -268,6 +306,21 @@ fun LazyGridItemScope.FolderItem(
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                if (depth > 0) {
+                    Spacer(modifier = Modifier.width((depth * 20).dp))
+                }
+                if (hasChildren && onExpandToggle != null) {
+                    IconButton(onClick = onExpandToggle) {
+                        Icon(
+                            imageVector = if (isExpanded) Icons.Outlined.KeyboardArrowDown
+                            else Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = folderColor
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(48.dp))
+                }
                 Icon(
                     imageVector = Icons.Default.Folder,
                     contentDescription = "Folder",
@@ -275,7 +328,7 @@ fun LazyGridItemScope.FolderItem(
                     modifier = Modifier.size(40.dp)
                 )
                 Spacer(modifier = Modifier.width(16.dp))
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = folder.name,
                         style = MaterialTheme.typography.titleMedium.copy(
@@ -298,6 +351,13 @@ fun LazyGridItemScope.FolderItem(
                         )
                     )
                 }
+                IconButton(onClick = { onToggleFavorite(folder) }) {
+                    Icon(
+                        imageVector = if (folder.isFavorite) Icons.Outlined.Star else Icons.Outlined.StarBorder,
+                        contentDescription = stringResource(R.string.favorite_folder),
+                        tint = if (folder.isFavorite) folderColor else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
 
@@ -316,6 +376,26 @@ fun LazyGridItemScope.FolderItem(
                 }
             )
             DropdownMenuItem(
+                text = {
+                    Text(
+                        stringResource(
+                            if (folder.isFavorite) R.string.remove_from_favorites
+                            else R.string.favorite_folder
+                        )
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        if (folder.isFavorite) Icons.Outlined.Star else Icons.Outlined.StarBorder,
+                        contentDescription = null
+                    )
+                },
+                onClick = {
+                    onToggleFavorite(folder)
+                    showContextMenu = false
+                }
+            )
+            DropdownMenuItem(
                 text = { Text(stringResource(R.string.delete)) },
                 leadingIcon = {
                     Icon(Icons.Outlined.Delete, contentDescription = null)
@@ -330,7 +410,7 @@ fun LazyGridItemScope.FolderItem(
 
     if (showWarningDialog) {
         WarningDialog(
-            message = stringResource(R.string.deleting_a_folder_will_also_delete_all_the_notes_it_contains_and_they_cannot_be_restored_do_you_want_to_continue),
+            message = stringResource(R.string.deleting_a_folder_will_move_its_notes_to_trash_and_remove_its_subfolders_do_you_want_to_continue),
             onDismissRequest = { showWarningDialog = false },
             onConfirm = onDelete
         )
@@ -339,7 +419,9 @@ fun LazyGridItemScope.FolderItem(
     if (showModifyDialog) {
         ModifyFolderDialog(
             folder = folder,
-            onDismissRequest = { showModifyDialog = false }) {
+            folders = folders,
+            onDismissRequest = { showModifyDialog = false }
+        ) {
             onModify(it)
         }
     }

@@ -15,6 +15,8 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -39,6 +41,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.MoreVert
@@ -58,6 +61,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -120,7 +124,11 @@ import com.yangdai.opennote.presentation.viewmodel.SharedViewModel
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3ExpressiveApi::class,
+    ExperimentalLayoutApi::class
+)
 @Composable
 fun MainScreen(
     viewModel: SharedViewModel = hiltViewModel(LocalActivity.current as MainActivity),
@@ -133,6 +141,11 @@ fun MainScreen(
     val settings by viewModel.settingsStateFlow.collectAsStateWithLifecycle()
     val folderNoteCountsList by viewModel.folderWithNoteCountsFlow.collectAsStateWithLifecycle()
     val dataAction by viewModel.dataActionStateFlow.collectAsStateWithLifecycle()
+    val favoriteFolders = remember(folderNoteCountsList) {
+        folderNoteCountsList.map { it.first }
+            .filter { it.isFavorite }
+            .sortedBy { it.name.lowercase() }
+    }
 
     val staggeredGridState = rememberLazyStaggeredGridState()
     val navigationDrawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -202,6 +215,7 @@ fun MainScreen(
             DrawerContent(
                 folderNoteCounts = folderNoteCountsList,
                 selectedDrawerIndex = selectedNavDrawerIndex,
+                selectedFolderId = currentFolder.id,
                 showLock = settings.password.isNotEmpty(),
                 onLockClick = {
                     scope.launch { navigationDrawerState.close() }
@@ -464,6 +478,8 @@ fun MainScreen(
                     .padding(paddingValues)
                     .semantics { isTraversalGroup = true }
             ) {
+                val statusBarPadding = WindowInsets.statusBars.asPaddingValues()
+                val showFavoriteFolders = selectedNavDrawerIndex == 0 && favoriteFolders.isNotEmpty()
 
                 if (selectedNavDrawerIndex == 0) {
                     AdaptiveTopSearchbar(
@@ -486,6 +502,47 @@ fun MainScreen(
                     )
                 }
 
+                AnimatedVisibility(
+                    visible = showFavoriteFolders,
+                    modifier = Modifier
+                        .zIndex(1f)
+                        .align(Alignment.TopCenter)
+                        .padding(
+                            top = statusBarPadding.calculateTopPadding() + 72.dp,
+                            start = 16.dp,
+                            end = 16.dp
+                        )
+                ) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        favoriteFolders.forEach { folder ->
+                            SuggestionChip(
+                                onClick = {
+                                    selectedNavDrawerIndex = 2
+                                    currentFolder = folder
+                                },
+                                icon = {
+                                    Icon(
+                                        imageVector = Icons.Outlined.FolderOpen,
+                                        contentDescription = null,
+                                        tint = folder.color?.let { androidx.compose.ui.graphics.Color(it) }
+                                            ?: MaterialTheme.colorScheme.primary
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        text = folder.name,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
+
                 // 如果没有笔记，不显示，性能优化
                 if (mainScreenData.notes.isEmpty()) {
                     return@Box
@@ -505,17 +562,16 @@ fun MainScreen(
                     )
                 }
 
-                val statusBarPadding = WindowInsets.statusBars.asPaddingValues()
                 val contentPadding =
-                    remember(statusBarPadding, innerPadding, settings.isListView) {
+                    remember(statusBarPadding, innerPadding, settings.isListView, showFavoriteFolders) {
 
                         if (!settings.isListView) PaddingValues(
-                            top = statusBarPadding.calculateTopPadding() + 78.dp,
+                            top = statusBarPadding.calculateTopPadding() + if (showFavoriteFolders) 140.dp else 78.dp,
                             start = 16.dp,
                             end = 16.dp,
                             bottom = innerPadding.calculateBottomPadding()
                         ) else PaddingValues(
-                            top = statusBarPadding.calculateTopPadding() + 74.dp,
+                            top = statusBarPadding.calculateTopPadding() + if (showFavoriteFolders) 136.dp else 74.dp,
                             start = 5.dp,
                             end = 16.dp,
                             bottom = innerPadding.calculateBottomPadding()
@@ -716,12 +772,18 @@ fun MainScreen(
     }
 }
 
-private object FolderEntitySaver : Saver<FolderEntity, Triple<Long?, String, Int?>> {
-    override fun restore(value: Triple<Long?, String, Int?>): FolderEntity {
-        return FolderEntity(value.first, value.second, value.third)
+private object FolderEntitySaver : Saver<FolderEntity, List<Any?>> {
+    override fun restore(value: List<Any?>): FolderEntity {
+        return FolderEntity(
+            id = value.getOrNull(0) as? Long,
+            name = value.getOrNull(1) as? String ?: "",
+            color = value.getOrNull(2) as? Int,
+            parentId = value.getOrNull(3) as? Long,
+            isFavorite = value.getOrNull(4) as? Boolean ?: false
+        )
     }
 
-    override fun SaverScope.save(value: FolderEntity): Triple<Long?, String, Int?> {
-        return Triple(value.id, value.name, value.color)
+    override fun SaverScope.save(value: FolderEntity): List<Any?> {
+        return listOf(value.id, value.name, value.color, value.parentId, value.isFavorite)
     }
 }
