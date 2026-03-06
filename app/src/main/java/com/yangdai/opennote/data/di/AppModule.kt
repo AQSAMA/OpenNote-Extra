@@ -26,6 +26,7 @@ import com.yangdai.opennote.domain.repository.FolderRepository
 import com.yangdai.opennote.domain.repository.WidgetDataStoreRepository
 import com.yangdai.opennote.domain.usecase.GetNoteById
 import com.yangdai.opennote.domain.usecase.GetNotesCountByFolderId
+import com.yangdai.opennote.domain.usecase.GetSubFolders
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -83,6 +84,7 @@ object AppModule {
         updateFolder = UpdateFolder(folderRepository),
         deleteFolder = DeleteFolder(folderRepository),
         getFolders = GetFolders(folderRepository),
+        getSubFolders = GetSubFolders(folderRepository),
         getNotesCountByFolderId = GetNotesCountByFolderId(noteRepository)
     )
 }

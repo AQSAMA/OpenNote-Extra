@@ -457,7 +457,7 @@ class SharedViewModel @Inject constructor(
 
     private suspend fun deleteSubFoldersRecursively(folderId: Long?) {
         if (folderId == null) return
-        val subFolders = useCases.getFolders().first().filter { it.parentId == folderId }
+        val subFolders = useCases.getSubFolders(folderId).first()
         for (subFolder in subFolders) {
             deleteSubFoldersRecursively(subFolder.id)
             useCases.deleteNotesByFolderId(subFolder.id)
