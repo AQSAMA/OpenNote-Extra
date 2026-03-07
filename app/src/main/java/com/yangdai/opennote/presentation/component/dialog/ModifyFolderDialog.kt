@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Colorize
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +44,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yangdai.opennote.R
 import com.yangdai.opennote.data.local.entity.FolderEntity
+import com.yangdai.opennote.presentation.util.getFolderDescendantIds
 import kotlinx.coroutines.launch
 
 @Composable
@@ -49,6 +52,7 @@ import kotlinx.coroutines.launch
 fun ModifyFolderDialogPreview() {
     ModifyFolderDialog(
         folder = FolderEntity(),
+        title = "Modify",
         onDismissRequest = {},
         onModify = {}
     )
@@ -58,12 +62,17 @@ fun ModifyFolderDialogPreview() {
 @Composable
 fun ModifyFolderDialog(
     folder: FolderEntity,
+    folders: List<FolderEntity> = emptyList(),
+    title: String = "",
+    showPlacementField: Boolean = true,
     onDismissRequest: () -> Unit,
     onModify: (FolderEntity) -> Unit
 ) {
 
     var text by remember { mutableStateOf(folder.name) }
     var color by remember { mutableStateOf(folder.color) }
+    var parentId by remember { mutableStateOf(folder.parentId) }
+    var favorite by remember { mutableStateOf(folder.isFavorite) }
     val custom =
         color != null && !FolderEntity.folderColors.contains(Color(color!!))
     val initValue =
@@ -75,13 +84,22 @@ fun ModifyFolderDialog(
     var showDialog by remember {
         mutableStateOf(false)
     }
+    var showParentDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val bottomSheetState =
         rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val blockedFolderIds = remember(folder.id, folders) {
+        folder.id?.let { folderId ->
+            getFolderDescendantIds(folders, folderId) + folderId
+        } ?: emptySet()
+    }
+    val selectedParentName = folders.firstOrNull { it.id == parentId }?.name
+        ?: stringResource(R.string.no_parent)
+    val dialogTitle = title.ifBlank { stringResource(R.string.modify) }
 
     AlertDialog(
         title = {
-            Text(text = stringResource(R.string.modify))
+            Text(text = dialogTitle)
         },
         text = {
             Column {
@@ -92,6 +110,30 @@ fun ModifyFolderDialog(
                     singleLine = true,
                     placeholder = { Text(text = stringResource(R.string.name)) },
                 )
+                if (showPlacementField) {
+                    OutlinedTextField(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp)
+                            .clickable { showParentDialog = true },
+                        value = selectedParentName,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(text = stringResource(R.string.parent_folder)) }
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = favorite,
+                        onCheckedChange = { favorite = it }
+                    )
+                    Text(text = stringResource(R.string.favorite_folder))
+                }
                 LazyRow(
                     modifier = Modifier.padding(top = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -144,7 +186,9 @@ fun ModifyFolderDialog(
                         FolderEntity(
                             id = folder.id,
                             name = text,
-                            color = color
+                            color = color,
+                            parentId = parentId,
+                            isFavorite = favorite
                         )
                     )
 
@@ -173,6 +217,19 @@ fun ModifyFolderDialog(
                     showDialog = false
                 }
             }
+        }
+    }
+
+    if (showPlacementField && showParentDialog) {
+        FolderListDialog(
+            hint = stringResource(R.string.parent_folder),
+            oFolderId = parentId,
+            folders = folders,
+            rootLabel = stringResource(R.string.no_parent),
+            excludedFolderIds = blockedFolderIds,
+            onDismissRequest = { showParentDialog = false }
+        ) {
+            parentId = it
         }
     }
 }

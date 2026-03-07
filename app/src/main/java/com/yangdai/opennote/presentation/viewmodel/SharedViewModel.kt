@@ -14,6 +14,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yangdai.opennote.data.local.Database
 import com.yangdai.opennote.data.local.entity.BackupData
+import com.yangdai.opennote.data.local.entity.FolderEntity
 import com.yangdai.opennote.data.local.entity.NoteEntity
 import com.yangdai.opennote.domain.repository.AppDataStoreRepository
 import com.yangdai.opennote.domain.usecase.NoteOrder
@@ -62,6 +63,7 @@ import com.yangdai.opennote.presentation.util.Constants
 import com.yangdai.opennote.presentation.util.PARSER
 import com.yangdai.opennote.presentation.util.decryptBackupDataWithCompatibility
 import com.yangdai.opennote.presentation.util.encryptBackupData
+import com.yangdai.opennote.presentation.util.getFolderDescendantIds
 import com.yangdai.opennote.presentation.util.extension.highlight.HighlightExtension
 import com.yangdai.opennote.presentation.util.getFileName
 import com.yangdai.opennote.presentation.util.getOrCreateDirectory
@@ -442,8 +444,7 @@ class SharedViewModel @Inject constructor(
                 }
 
                 is FolderEvent.DeleteFolder -> {
-                    useCases.deleteNotesByFolderId(event.folder.id)
-                    useCases.deleteFolder(event.folder)
+                    deleteFolderToTrash(event.folder)
                 }
 
                 is FolderEvent.UpdateFolder -> {
@@ -451,6 +452,40 @@ class SharedViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private suspend fun deleteFolderToTrash(folder: FolderEntity) {
+        val folderId = folder.id ?: return
+        val folders = useCases.getFolders().first()
+        val folderIdsToDelete = buildList {
+            add(folderId)
+            addAll(getFolderDescendantIds(folders, folderId))
+        }
+
+        folderIdsToDelete.forEach { currentFolderId ->
+            useCases.getNotes(
+                noteOrder = NoteOrder.Date(OrderType.Descending),
+                filterFolder = true,
+                folderId = currentFolderId
+            ).first().forEach { note ->
+                useCases.updateNote(note.copy(isDeleted = true))
+            }
+        }
+
+        val descendantCounts = folders
+            .mapNotNull { folderEntity ->
+                folderEntity.id?.let { id -> id to getFolderDescendantIds(folders, id).size }
+            }
+            .toMap()
+
+        folders
+            .filter { folderEntity -> folderEntity.id in folderIdsToDelete }
+            .sortedByDescending { folderEntity ->
+                folderEntity.id?.let { descendantCounts[it] } ?: 0
+            }
+            .forEach { folderEntity ->
+                useCases.deleteFolder(folderEntity)
+            }
     }
 
     private fun getNotes(

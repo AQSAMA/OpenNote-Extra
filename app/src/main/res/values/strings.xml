@@ -40,7 +40,7 @@
     <string name="checked">"Selected: "</string>
     <string name="modify">Modify</string>
     <string name="warning">Warning</string>
-    <string name="deleting_a_folder_will_also_delete_all_the_notes_it_contains_and_they_cannot_be_restored_do_you_want_to_continue">Deleting a folder will also delete all the notes it contains and they cannot be restored. Do you want to continue?</string>
+    <string name="deleting_a_folder_will_also_delete_all_the_notes_it_contains_and_they_cannot_be_restored_do_you_want_to_continue">Deleting a folder will move its notes to trash. Do you want to continue?</string>
     <string name="restore">Restore</string>
     <string name="app_info">About app</string>
     <string name="version">Version</string>
@@ -109,6 +109,13 @@
     <string name="pass">Password</string>
     <string name="color_picker">Color Picker</string>
     <string name="navigate_back">Navigate back</string>
+    <string name="parent_folder">Place inside</string>
+    <string name="no_parent">Top level</string>
+    <string name="create_folder">Create folder</string>
+    <string name="create_subfolder">Create subfolder</string>
+    <string name="favorite_folder">Favorite folder</string>
+    <string name="remove_from_favorites">Remove from favorites</string>
+    <string name="deleting_a_folder_will_move_its_notes_to_trash_and_remove_its_subfolders_do_you_want_to_continue">Deleting a folder will move its notes to trash and remove its subfolders. Do you want to continue?</string>
     <string name="mode">Mode</string>
     <string name="standard_mode">Standard</string>
     <string name="editor">Editor</string>

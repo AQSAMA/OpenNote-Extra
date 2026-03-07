@@ -3,8 +3,10 @@ package com.yangdai.opennote.presentation.component.dialog
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -33,6 +35,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yangdai.opennote.R
 import com.yangdai.opennote.data.local.entity.FolderEntity
+import com.yangdai.opennote.presentation.util.FolderTreeIndent
+import com.yangdai.opennote.presentation.util.flattenFolders
 
 
 @Composable
@@ -40,11 +44,21 @@ fun FolderListDialog(
     hint: String = "",
     oFolderId: Long?,
     folders: List<FolderEntity>,
+    rootLabel: String? = null,
+    excludedFolderIds: Set<Long> = emptySet(),
     onDismissRequest: () -> Unit,
     onSelect: (Long?) -> Unit
 ) {
 
     var selectedFolderId by remember { mutableStateOf(oFolderId) }
+    val resolvedRootLabel = rootLabel ?: stringResource(R.string.all_notes)
+    val flattenedFolders = remember(folders, excludedFolderIds) {
+        flattenFolders(
+            folders = folders.filter { folder ->
+                folder.id == null || folder.id !in excludedFolderIds
+            }
+        )
+    }
 
     AlertDialog(
         title = { Text(text = hint) },
@@ -77,12 +91,13 @@ fun FolderListDialog(
                             )
 
                             Text(
-                                text = stringResource(id = R.string.all_notes),
+                                text = resolvedRootLabel,
                                 modifier = Modifier.padding(start = 16.dp)
                             )
                         }
                     }
-                    items(folders) { folder ->
+                    items(flattenedFolders, key = { it.folder.id ?: Long.MIN_VALUE }) { item ->
+                        val folder = item.folder
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -98,6 +113,14 @@ fun FolderListDialog(
                                 selected = folder.id == selectedFolderId,
                                 onClick = null
                             )
+
+                            if (item.depth > 0) {
+                                Spacer(
+                                    modifier = Modifier.width(
+                                        (item.depth * FolderTreeIndent.value).dp
+                                    )
+                                )
+                            }
 
                             Icon(
                                 imageVector = Icons.Outlined.FolderOpen,
@@ -144,7 +167,7 @@ fun FolderListDialogPreview() {
         oFolderId = 1,
         folders = listOf(
             FolderEntity(1, "Folder 1", null),
-            FolderEntity(2, "Folder 2", null),
+            FolderEntity(2, "Folder 2", null, 1),
             FolderEntity(3, "Folder 3", null)
         ),
         onDismissRequest = {},
