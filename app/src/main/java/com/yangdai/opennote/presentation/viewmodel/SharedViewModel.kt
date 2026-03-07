@@ -14,6 +14,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yangdai.opennote.data.local.Database
 import com.yangdai.opennote.data.local.entity.BackupData
+import com.yangdai.opennote.data.local.entity.FolderEntity
 import com.yangdai.opennote.data.local.entity.NoteEntity
 import com.yangdai.opennote.domain.repository.AppDataStoreRepository
 import com.yangdai.opennote.domain.usecase.NoteOrder

@@ -2,7 +2,6 @@ package com.yangdai.opennote.presentation.screen
 
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
-import androidx.compose.foundation.animateItem
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -18,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -192,7 +192,7 @@ fun FolderScreen(
 }
 
 @Composable
-fun FolderItem(
+fun LazyItemScope.FolderItem(
     folder: FolderEntity,
     folders: List<FolderEntity>,
     notesCountInFolder: Int,
