@@ -52,6 +52,7 @@ import kotlinx.coroutines.launch
 fun ModifyFolderDialogPreview() {
     ModifyFolderDialog(
         folder = FolderEntity(),
+        title = "Modify",
         onDismissRequest = {},
         onModify = {}
     )
@@ -62,6 +63,8 @@ fun ModifyFolderDialogPreview() {
 fun ModifyFolderDialog(
     folder: FolderEntity,
     folders: List<FolderEntity> = emptyList(),
+    title: String = "",
+    showPlacementField: Boolean = true,
     onDismissRequest: () -> Unit,
     onModify: (FolderEntity) -> Unit
 ) {
@@ -92,10 +95,11 @@ fun ModifyFolderDialog(
     }
     val selectedParentName = folders.firstOrNull { it.id == parentId }?.name
         ?: stringResource(R.string.no_parent)
+    val dialogTitle = title.ifBlank { stringResource(R.string.modify) }
 
     AlertDialog(
         title = {
-            Text(text = stringResource(R.string.modify))
+            Text(text = dialogTitle)
         },
         text = {
             Column {
@@ -106,16 +110,18 @@ fun ModifyFolderDialog(
                     singleLine = true,
                     placeholder = { Text(text = stringResource(R.string.name)) },
                 )
-                OutlinedTextField(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp)
-                        .clickable { showParentDialog = true },
-                    value = selectedParentName,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text(text = stringResource(R.string.parent_folder)) }
-                )
+                if (showPlacementField) {
+                    OutlinedTextField(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp)
+                            .clickable { showParentDialog = true },
+                        value = selectedParentName,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(text = stringResource(R.string.parent_folder)) }
+                    )
+                }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -214,7 +220,7 @@ fun ModifyFolderDialog(
         }
     }
 
-    if (showParentDialog) {
+    if (showPlacementField && showParentDialog) {
         FolderListDialog(
             hint = stringResource(R.string.parent_folder),
             oFolderId = parentId,

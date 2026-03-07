@@ -90,6 +90,7 @@ fun FolderScreen(
     val folders = remember(folderNoteCounts) { folderNoteCounts.map { it.first } }
 
     var showAddFolderDialog by rememberSaveable { mutableStateOf(false) }
+    var subfolderParentId by rememberSaveable { mutableStateOf<Long?>(null) }
     var expandedFolderIds by rememberSaveable { mutableStateOf<List<Long>>(emptyList()) }
     var initializedFolderExpansion by rememberSaveable { mutableStateOf(false) }
 
@@ -131,7 +132,7 @@ fun FolderScreen(
                     IconButton(onClick = { showAddFolderDialog = true }) {
                         Icon(
                             imageVector = Icons.Outlined.CreateNewFolder,
-                            contentDescription = "Create New Folder"
+                            contentDescription = stringResource(R.string.create_folder)
                         )
                     }
                 },
@@ -174,18 +175,36 @@ fun FolderScreen(
                         sharedViewModel.onFolderEvent(
                             FolderEvent.UpdateFolder(folderEntity.copy(isFavorite = !folderEntity.isFavorite))
                         )
+                    },
+                    onCreateSubfolder = { folderEntity ->
+                        folderEntity.id?.let { folderId ->
+                            expandedFolderIds = (expandedFolderIds + folderId).distinct()
+                            subfolderParentId = folderId
+                        }
                     }
                 )
             }
         }
 
-        if (showAddFolderDialog) {
+        if (showAddFolderDialog && subfolderParentId == null) {
             ModifyFolderDialog(
                 folder = FolderEntity(),
+                title = stringResource(R.string.create_folder),
                 folders = folders,
                 onDismissRequest = { showAddFolderDialog = false }
             ) {
                 sharedViewModel.onFolderEvent(FolderEvent.AddFolder(it))
+            }
+        }
+        subfolderParentId?.let { parentFolderId ->
+            ModifyFolderDialog(
+                folder = FolderEntity(parentId = parentFolderId),
+                title = stringResource(R.string.create_subfolder),
+                showPlacementField = false,
+                onDismissRequest = { subfolderParentId = null }
+            ) {
+                sharedViewModel.onFolderEvent(FolderEvent.AddFolder(it))
+                subfolderParentId = null
             }
         }
     }
@@ -203,6 +222,7 @@ fun LazyItemScope.FolderItem(
     onModify: (FolderEntity) -> Unit,
     onDelete: () -> Unit,
     onToggleFavorite: (FolderEntity) -> Unit,
+    onCreateSubfolder: (FolderEntity) -> Unit,
     colorScheme: ColorScheme = MaterialTheme.colorScheme
 ) {
     var showModifyDialog by remember { mutableStateOf(false) }
@@ -399,6 +419,16 @@ fun LazyItemScope.FolderItem(
                 }
             )
             DropdownMenuItem(
+                text = { Text(stringResource(R.string.create_subfolder)) },
+                leadingIcon = {
+                    Icon(Icons.Outlined.CreateNewFolder, contentDescription = null)
+                },
+                onClick = {
+                    onCreateSubfolder(folder)
+                    showContextMenu = false
+                }
+            )
+            DropdownMenuItem(
                 text = { Text(stringResource(R.string.delete)) },
                 leadingIcon = {
                     Icon(Icons.Outlined.Delete, contentDescription = null)
@@ -423,6 +453,7 @@ fun LazyItemScope.FolderItem(
         ModifyFolderDialog(
             folder = folder,
             folders = folders,
+            title = stringResource(R.string.modify),
             onDismissRequest = { showModifyDialog = false }
         ) {
             onModify(it)
