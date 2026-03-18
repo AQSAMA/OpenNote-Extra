@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -49,6 +50,7 @@ import kotlinx.coroutines.launch
 fun ModifyFolderDialogPreview() {
     ModifyFolderDialog(
         folder = FolderEntity(),
+        folders = emptyList(),
         onDismissRequest = {},
         onModify = {}
     )
@@ -58,12 +60,14 @@ fun ModifyFolderDialogPreview() {
 @Composable
 fun ModifyFolderDialog(
     folder: FolderEntity,
+    folders: List<FolderEntity>,
     onDismissRequest: () -> Unit,
     onModify: (FolderEntity) -> Unit
 ) {
 
     var text by remember { mutableStateOf(folder.name) }
     var color by remember { mutableStateOf(folder.color) }
+    var parentId by remember { mutableStateOf(folder.parentId) }
     val custom =
         color != null && !FolderEntity.folderColors.contains(Color(color!!))
     val initValue =
@@ -75,6 +79,7 @@ fun ModifyFolderDialog(
     var showDialog by remember {
         mutableStateOf(false)
     }
+    var showParentFolderDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val bottomSheetState =
         rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -125,6 +130,22 @@ fun ModifyFolderDialog(
                         }
                     }
                 }
+
+                OutlinedButton(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
+                    onClick = { showParentFolderDialog = true }
+                ) {
+                    val selectedParentName = folders.firstOrNull { it.id == parentId }?.name
+                        ?: stringResource(R.string.all_notes)
+                    Text(
+                        text = stringResource(
+                            R.string.parent_folder_format,
+                            selectedParentName
+                        )
+                    )
+                }
             }
         },
         onDismissRequest = onDismissRequest,
@@ -144,7 +165,8 @@ fun ModifyFolderDialog(
                         FolderEntity(
                             id = folder.id,
                             name = text,
-                            color = color
+                            color = color,
+                            parentId = parentId
                         )
                     )
 
@@ -174,6 +196,16 @@ fun ModifyFolderDialog(
                 }
             }
         }
+    }
+
+    if (showParentFolderDialog) {
+        FolderListDialog(
+            hint = stringResource(R.string.parent_folder),
+            oFolderId = parentId,
+            folders = folders,
+            onDismissRequest = { showParentFolderDialog = false },
+            onSelect = { parentId = it }
+        )
     }
 }
 

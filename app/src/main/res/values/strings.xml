@@ -40,7 +40,7 @@
     <string name="checked">"Selected: "</string>
     <string name="modify">Modify</string>
     <string name="warning">Warning</string>
-    <string name="deleting_a_folder_will_also_delete_all_the_notes_it_contains_and_they_cannot_be_restored_do_you_want_to_continue">Deleting a folder will also delete all the notes it contains and they cannot be restored. Do you want to continue?</string>
+    <string name="deleting_a_folder_will_also_delete_all_the_notes_it_contains_and_they_cannot_be_restored_do_you_want_to_continue">Deleting a folder will move all notes in it (including subfolders) to Trash. Do you want to continue?</string>
     <string name="restore">Restore</string>
     <string name="app_info">About app</string>
     <string name="version">Version</string>
@@ -59,6 +59,8 @@
     <string name="progress">Progress</string>
     <string name="import_files">Import text files</string>
     <string name="destination_folder">Destination folder</string>
+    <string name="parent_folder">Parent folder</string>
+    <string name="parent_folder_format">Parent folder: %1$s</string>
     <string name="language_description">Choose the app language</string>
     <string name="data">Data</string>
     <string name="security">Security</string>

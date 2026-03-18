@@ -3,8 +3,10 @@ package com.yangdai.opennote.presentation.component.dialog
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -33,6 +35,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yangdai.opennote.R
 import com.yangdai.opennote.data.local.entity.FolderEntity
+import com.yangdai.opennote.presentation.util.buildFolderTreeItems
 
 
 @Composable
@@ -45,6 +48,12 @@ fun FolderListDialog(
 ) {
 
     var selectedFolderId by remember { mutableStateOf(oFolderId) }
+    val folderItems = remember(folders) {
+        buildFolderTreeItems(
+            folders = folders,
+            expandedFolderIds = folders.mapNotNull { it.id }.toSet()
+        )
+    }
 
     AlertDialog(
         title = { Text(text = hint) },
@@ -82,7 +91,8 @@ fun FolderListDialog(
                             )
                         }
                     }
-                    items(folders) { folder ->
+                    items(folderItems, key = { it.folder.id ?: Long.MIN_VALUE }) { item ->
+                        val folder = item.folder
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -104,6 +114,8 @@ fun FolderListDialog(
                                 tint = if (folder.color != null) Color(folder.color) else MaterialTheme.colorScheme.onSurface,
                                 contentDescription = "Leading Icon"
                             )
+
+                            Spacer(modifier = Modifier.width((item.depth * 16).dp))
 
                             Text(
                                 text = folder.name,

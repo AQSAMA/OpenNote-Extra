@@ -14,6 +14,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yangdai.opennote.data.local.Database
 import com.yangdai.opennote.data.local.entity.BackupData
+import com.yangdai.opennote.data.local.entity.FolderEntity
 import com.yangdai.opennote.data.local.entity.NoteEntity
 import com.yangdai.opennote.domain.repository.AppDataStoreRepository
 import com.yangdai.opennote.domain.usecase.NoteOrder
@@ -62,6 +63,7 @@ import com.yangdai.opennote.presentation.util.Constants
 import com.yangdai.opennote.presentation.util.PARSER
 import com.yangdai.opennote.presentation.util.decryptBackupDataWithCompatibility
 import com.yangdai.opennote.presentation.util.encryptBackupData
+import com.yangdai.opennote.presentation.util.getDescendantFolderIds
 import com.yangdai.opennote.presentation.util.extension.highlight.HighlightExtension
 import com.yangdai.opennote.presentation.util.getFileName
 import com.yangdai.opennote.presentation.util.getOrCreateDirectory
@@ -84,11 +86,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
@@ -136,13 +135,20 @@ class SharedViewModel @Inject constructor(
 
     // 文件夹和文件夹内笔记数量为一个Pair的列表
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
-    val folderWithNoteCountsFlow = useCases.getFolders().debounce(300).flatMapLatest { folders ->
-        if (folders.isEmpty()) return@flatMapLatest flowOf(emptyList())
-        else combine(
-            folders.map { folder ->
-                useCases.getNotesCountByFolderId(folder.id).map { count -> folder to count }
+    val folderWithNoteCountsFlow = combine(
+        useCases.getFolders().debounce(300),
+        useCases.getNotes()
+    ) { folders, notes ->
+        folders.map { folder ->
+            val folderId = folder.id
+            val count = if (folderId == null) {
+                0
+            } else {
+                val folderIds = getDescendantFolderIds(folders, folderId)
+                notes.count { it.folderId in folderIds }
             }
-        ) { countPairs -> countPairs.toList() }
+            folder to count
+        }
     }.flowOn(Dispatchers.IO)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
 
@@ -442,8 +448,23 @@ class SharedViewModel @Inject constructor(
                 }
 
                 is FolderEvent.DeleteFolder -> {
-                    useCases.deleteNotesByFolderId(event.folder.id)
-                    useCases.deleteFolder(event.folder)
+                    val folders = useCases.getFolders().first()
+                    val targetFolderIds = getDescendantFolderIds(folders, event.folder.id)
+                    val targetFolders = folders.filter { it.id in targetFolderIds }
+
+                    val notes = useCases.getNotes().first().filter { it.folderId in targetFolderIds }
+                    notes.forEach { note ->
+                        useCases.updateNote(
+                            note.copy(
+                                isDeleted = true,
+                                timestamp = System.currentTimeMillis()
+                            )
+                        )
+                    }
+
+                    targetFolders.sortedByDescending { getFolderDepth(it, folders) }.forEach {
+                        useCases.deleteFolder(it)
+                    }
                 }
 
                 is FolderEvent.UpdateFolder -> {
@@ -461,7 +482,19 @@ class SharedViewModel @Inject constructor(
     ) {
         queryNotesJob?.cancel()
         queryNotesJob = viewModelScope.launch {
-            useCases.getNotes(noteOrder, trash, filterFolder, folderId)
+            val notesFlow = if (filterFolder && !trash && folderId != null) {
+                combine(
+                    useCases.getNotes(noteOrder, trash, filterFolder = false),
+                    useCases.getFolders()
+                ) { notes, folders ->
+                    val folderIds = getDescendantFolderIds(folders, folderId)
+                    notes.filter { it.folderId in folderIds }
+                }
+            } else {
+                useCases.getNotes(noteOrder, trash, filterFolder, folderId)
+            }
+
+            notesFlow
                 .distinctUntilChanged()
                 .collect { notes ->
                     mainScreenDataStateFlow.update {
@@ -475,6 +508,23 @@ class SharedViewModel @Inject constructor(
                     }
                 }
         }
+    }
+
+    private fun getFolderDepth(folder: FolderEntity, folders: List<FolderEntity>): Int {
+        val folderMap = folders.associateBy { it.id }
+        var depth = 0
+        var currentParentId = folder.parentId
+        val visited = mutableSetOf<Long>()
+        while (
+            currentParentId != null &&
+            depth < FolderEntity.MAX_FOLDER_DEPTH &&
+            visited.add(currentParentId)
+        ) {
+            val parent = folderMap[currentParentId] ?: break
+            depth++
+            currentParentId = parent.parentId
+        }
+        return depth
     }
 
     private fun searchNotes(keyWord: String) {

@@ -4,8 +4,11 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -27,7 +30,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -45,12 +47,14 @@ import com.yangdai.opennote.data.local.entity.FolderEntity
 import com.yangdai.opennote.presentation.navigation.Screen
 import com.yangdai.opennote.presentation.navigation.Screen.Folders
 import com.yangdai.opennote.presentation.navigation.Screen.Settings
+import com.yangdai.opennote.presentation.util.buildFolderTreeItems
 
 @Composable
 fun DrawerContent(
     folderNoteCounts: List<Pair<FolderEntity, Int>>,
     showLock: Boolean,
     selectedDrawerIndex: Int,
+    selectedFolderId: Long?,
     onLockClick: () -> Unit,
     navigateTo: (Screen) -> Unit,
     onDrawerItemClicked: (Int, FolderEntity) -> Unit
@@ -110,9 +114,12 @@ fun DrawerContent(
 
     // Record whether the folder list is expanded
     var isFoldersExpended by rememberSaveable { mutableStateOf(false) }
+    var expandedFolderIds by rememberSaveable { mutableStateOf(setOf<Long>()) }
 
     LaunchedEffect(folderNoteCounts) {
         isFoldersExpended = folderNoteCounts.isNotEmpty()
+        val allFolderIds = folderNoteCounts.mapNotNull { it.first.id }.toSet()
+        expandedFolderIds = expandedFolderIds.intersect(allFolderIds)
     }
 
     DrawerItem(
@@ -125,18 +132,33 @@ fun DrawerContent(
 
     AnimatedVisibility(visible = isFoldersExpended) {
         Column {
-            folderNoteCounts.forEachIndexed { index, pair ->
-                key(pair.first.id) {
-                    DrawerItem(
-                        icon = Icons.Outlined.FolderOpen,
-                        iconTint = pair.first.color?.let { Color(it) }
-                            ?: MaterialTheme.colorScheme.primary,
-                        label = pair.first.name,
-                        badge = pair.second.toString(),
-                        isSelected = selectedDrawerIndex == index + 2,
-                        onClick = { onDrawerItemClicked(index + 2, pair.first) }
-                    )
-                }
+            val treeItems = buildFolderTreeItems(
+                folders = folderNoteCounts.map { it.first },
+                expandedFolderIds = expandedFolderIds
+            )
+            val folderCounts = folderNoteCounts.associate { it.first.id to it.second }
+
+            treeItems.forEachIndexed { index, item ->
+                DrawerFolderItem(
+                    folder = item.folder,
+                    depth = item.depth,
+                    hasChildren = item.hasChildren,
+                    expanded = expandedFolderIds.contains(item.folder.id),
+                    notesCount = folderCounts[item.folder.id] ?: 0,
+                    isSelected = selectedDrawerIndex > 1 && selectedFolderId == item.folder.id,
+                    onExpandToggle = {
+                        item.folder.id?.let { id ->
+                            expandedFolderIds = if (expandedFolderIds.contains(id)) {
+                                expandedFolderIds - id
+                            } else {
+                                expandedFolderIds + id
+                            }
+                        }
+                    },
+                    onFolderClick = {
+                        onDrawerItemClicked(index + 2, item.folder)
+                    }
+                )
             }
         }
     }
@@ -150,6 +172,63 @@ fun DrawerContent(
         Text(text = stringResource(R.string.manage_folders), textAlign = TextAlign.Center)
     }
 }
+
+@Composable
+private fun DrawerFolderItem(
+    folder: FolderEntity,
+    depth: Int,
+    hasChildren: Boolean,
+    expanded: Boolean,
+    notesCount: Int,
+    isSelected: Boolean,
+    onExpandToggle: () -> Unit,
+    onFolderClick: () -> Unit
+) = NavigationDrawerItem(
+    modifier = Modifier
+        .padding(NavigationDrawerItemDefaults.ItemPadding)
+        .padding(start = (depth * 16).dp),
+    icon = {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (hasChildren) {
+                IconButton(
+                    modifier = Modifier.size(24.dp),
+                    onClick = onExpandToggle
+                ) {
+                    Icon(
+                        imageVector = if (expanded) Icons.Outlined.KeyboardArrowDown else Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                        contentDescription = "Expand folder"
+                    )
+                }
+            } else {
+                Spacer(modifier = Modifier.width(24.dp))
+            }
+            Icon(
+                modifier = Modifier.padding(start = 4.dp),
+                imageVector = Icons.Outlined.FolderOpen,
+                tint = folder.color?.let { Color(it) } ?: MaterialTheme.colorScheme.primary,
+                contentDescription = "Folder"
+            )
+        }
+    },
+    label = {
+        Text(
+            text = folder.name,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    },
+    badge = {
+        Text(
+            text = notesCount.toString(),
+            style = MaterialTheme.typography.labelMedium
+        )
+    },
+    shape = MaterialTheme.shapes.medium,
+    selected = isSelected,
+    onClick = onFolderClick
+)
 
 @Composable
 private fun DrawerItem(
