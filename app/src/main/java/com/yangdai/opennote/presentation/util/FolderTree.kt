@@ -68,7 +68,7 @@ fun getAvailableParentFolders(
     currentFolder: FolderEntity
 ): List<FolderEntity> {
     val currentId = currentFolder.id ?: return folders
-    val blockedIds = getDescendantFolderIds(folders, currentId) + currentId
+    val blockedIds = getDescendantFolderIds(folders, currentId).plus(currentId)
     return folders.filter { folder ->
         folder.id !in blockedIds
     }

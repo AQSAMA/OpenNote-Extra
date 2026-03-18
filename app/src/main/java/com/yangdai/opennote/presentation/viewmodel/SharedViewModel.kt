@@ -448,8 +448,9 @@ class SharedViewModel @Inject constructor(
                 }
 
                 is FolderEvent.DeleteFolder -> {
+                    val folderId = event.folder.id ?: return@launch
                     val folders = useCases.getFolders().first()
-                    val targetFolderIds = getDescendantFolderIds(folders, event.folder.id)
+                    val targetFolderIds = getDescendantFolderIds(folders, folderId)
                     val targetFolders = folders.filter { it.id in targetFolderIds }
 
                     val notes = useCases.getNotes().first().filter { it.folderId in targetFolderIds }
@@ -462,7 +463,10 @@ class SharedViewModel @Inject constructor(
                         )
                     }
 
-                    targetFolders.sortedByDescending { getFolderDepth(it, folders) }.forEach {
+                    val folderDepthMap = targetFolders.associate { folder ->
+                        folder.id to getFolderDepth(folder, folders)
+                    }
+                    targetFolders.sortedByDescending { folderDepthMap[it.id] ?: 0 }.forEach {
                         useCases.deleteFolder(it)
                     }
                 }

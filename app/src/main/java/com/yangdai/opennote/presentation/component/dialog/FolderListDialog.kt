@@ -3,12 +3,10 @@ package com.yangdai.opennote.presentation.component.dialog
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material3.AlertDialog
@@ -93,11 +91,14 @@ fun FolderListDialog(
                             )
                         }
                     }
-                    items(folderItems, key = { it.folder.id ?: Long.MIN_VALUE }) { item ->
+                    itemsIndexed(
+                        items = folderItems
+                    ) { _, item ->
                         val folder = item.folder
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .padding(start = (item.depth * FOLDER_INDENT_PER_LEVEL_DP).dp)
                                 .clickable {
                                     selectedFolderId = folder.id
                                 },
@@ -116,8 +117,6 @@ fun FolderListDialog(
                                 tint = if (folder.color != null) Color(folder.color) else MaterialTheme.colorScheme.onSurface,
                                 contentDescription = "Leading Icon"
                             )
-
-                            Spacer(modifier = Modifier.width((item.depth * FOLDER_INDENT_PER_LEVEL_DP).dp))
 
                             Text(
                                 text = folder.name,
