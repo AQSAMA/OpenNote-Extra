@@ -49,6 +49,8 @@ import com.yangdai.opennote.presentation.navigation.Screen.Folders
 import com.yangdai.opennote.presentation.navigation.Screen.Settings
 import com.yangdai.opennote.presentation.util.buildFolderTreeItems
 
+private const val FOLDER_INDENT_PER_LEVEL_DP = 16
+
 @Composable
 fun DrawerContent(
     folderNoteCounts: List<Pair<FolderEntity, Int>>,
@@ -186,7 +188,7 @@ private fun DrawerFolderItem(
 ) = NavigationDrawerItem(
     modifier = Modifier
         .padding(NavigationDrawerItemDefaults.ItemPadding)
-        .padding(start = (depth * 16).dp),
+        .padding(start = (depth * FOLDER_INDENT_PER_LEVEL_DP).dp),
     icon = {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (hasChildren) {

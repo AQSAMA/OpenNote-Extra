@@ -37,6 +37,8 @@ import com.yangdai.opennote.R
 import com.yangdai.opennote.data.local.entity.FolderEntity
 import com.yangdai.opennote.presentation.util.buildFolderTreeItems
 
+private const val FOLDER_INDENT_PER_LEVEL_DP = 16
+
 
 @Composable
 fun FolderListDialog(
@@ -115,7 +117,7 @@ fun FolderListDialog(
                                 contentDescription = "Leading Icon"
                             )
 
-                            Spacer(modifier = Modifier.width((item.depth * 16).dp))
+                            Spacer(modifier = Modifier.width((item.depth * FOLDER_INDENT_PER_LEVEL_DP).dp))
 
                             Text(
                                 text = folder.name,
