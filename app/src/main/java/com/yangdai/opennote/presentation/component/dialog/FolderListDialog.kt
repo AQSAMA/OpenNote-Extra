@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material3.AlertDialog
@@ -33,6 +33,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yangdai.opennote.R
 import com.yangdai.opennote.data.local.entity.FolderEntity
+import com.yangdai.opennote.presentation.util.buildFolderTreeItems
+
+private const val FOLDER_INDENT_PER_LEVEL_DP = 16
 
 
 @Composable
@@ -45,6 +48,12 @@ fun FolderListDialog(
 ) {
 
     var selectedFolderId by remember { mutableStateOf(oFolderId) }
+    val folderItems = remember(folders) {
+        buildFolderTreeItems(
+            folders = folders,
+            expandedFolderIds = folders.mapNotNull { it.id }.toSet()
+        )
+    }
 
     AlertDialog(
         title = { Text(text = hint) },
@@ -82,10 +91,14 @@ fun FolderListDialog(
                             )
                         }
                     }
-                    items(folders) { folder ->
+                    itemsIndexed(
+                        items = folderItems
+                    ) { _, item ->
+                        val folder = item.folder
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .padding(start = (item.depth * FOLDER_INDENT_PER_LEVEL_DP).dp)
                                 .clickable {
                                     selectedFolderId = folder.id
                                 },

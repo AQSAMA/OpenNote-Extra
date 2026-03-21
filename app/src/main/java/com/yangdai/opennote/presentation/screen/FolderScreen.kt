@@ -17,10 +17,9 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyGridItemScope
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyItemScope
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -72,9 +71,13 @@ import com.yangdai.opennote.presentation.component.TopBarTitle
 import com.yangdai.opennote.presentation.component.dialog.ModifyFolderDialog
 import com.yangdai.opennote.presentation.component.dialog.WarningDialog
 import com.yangdai.opennote.presentation.event.FolderEvent
+import com.yangdai.opennote.presentation.util.buildFolderTreeItems
+import com.yangdai.opennote.presentation.util.getAvailableParentFolders
 import com.yangdai.opennote.presentation.viewmodel.SharedViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+private const val FOLDER_INDENT_PER_LEVEL_DP = 16
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,6 +87,16 @@ fun FolderScreen(
 ) {
 
     val folderNoteCounts by sharedViewModel.folderWithNoteCountsFlow.collectAsStateWithLifecycle()
+    val folderEntities = remember(folderNoteCounts) { folderNoteCounts.map { it.first } }
+    val folderItems = remember(folderNoteCounts) {
+        buildFolderTreeItems(
+            folders = folderEntities,
+            expandedFolderIds = folderEntities.mapNotNull { it.id }.toSet()
+        )
+    }
+    val folderNoteCountMap = remember(folderNoteCounts) {
+        folderNoteCounts.associate { it.first.id to it.second }
+    }
 
     var showAddFolderDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -119,23 +132,24 @@ fun FolderScreen(
         }
     ) { paddingValues ->
 
-        LazyVerticalGrid(
+        LazyColumn(
             modifier = Modifier.padding(horizontal = 16.dp),
-            columns = GridCells.Adaptive(360.dp),
             contentPadding = paddingValues,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            items(folderNoteCounts, key = { it.first.id!! }, contentType = { "FolderItem" }) {
+            items(folderItems, key = { it.folder.id!! }, contentType = { "FolderItem" }) {
                 FolderItem(
-                    folder = it.first,
-                    notesCountInFolder = it.second,
+                    folder = it.folder,
+                    depth = it.depth,
+                    notesCountInFolder = folderNoteCountMap[it.folder.id] ?: 0,
+                    folders = folderEntities,
                     onModify = { folderEntity ->
                         sharedViewModel.onFolderEvent(
                             FolderEvent.UpdateFolder(folderEntity)
                         )
                     },
                     onDelete = {
-                        sharedViewModel.onFolderEvent(FolderEvent.DeleteFolder(it.first))
+                        sharedViewModel.onFolderEvent(FolderEvent.DeleteFolder(it.folder))
                     }
                 )
             }
@@ -144,6 +158,7 @@ fun FolderScreen(
         if (showAddFolderDialog) {
             ModifyFolderDialog(
                 folder = FolderEntity(),
+                folders = folderEntities,
                 onDismissRequest = { showAddFolderDialog = false }
             ) {
                 sharedViewModel.onFolderEvent(
@@ -155,9 +170,11 @@ fun FolderScreen(
 }
 
 @Composable
-fun LazyGridItemScope.FolderItem(
+fun LazyItemScope.FolderItem(
     folder: FolderEntity,
+    depth: Int,
     notesCountInFolder: Int,
+    folders: List<FolderEntity>,
     onModify: (FolderEntity) -> Unit,
     onDelete: () -> Unit,
     colorScheme: ColorScheme = MaterialTheme.colorScheme
@@ -249,6 +266,7 @@ fun LazyGridItemScope.FolderItem(
         },
         modifier = Modifier
             .padding(bottom = 16.dp)
+            .padding(start = (depth * FOLDER_INDENT_PER_LEVEL_DP).dp)
             .clip(CardDefaults.elevatedShape)
             .animateItem()
             .hoverable(interactionSource)
@@ -339,6 +357,7 @@ fun LazyGridItemScope.FolderItem(
     if (showModifyDialog) {
         ModifyFolderDialog(
             folder = folder,
+            folders = getAvailableParentFolders(folders, folder),
             onDismissRequest = { showModifyDialog = false }) {
             onModify(it)
         }
