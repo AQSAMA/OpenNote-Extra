@@ -14,7 +14,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.yangdai.opennote"
+        applicationId = "com.yangdai.opennote.extra"
         minSdk = 29
         targetSdk = 36
         versionCode = 1670
